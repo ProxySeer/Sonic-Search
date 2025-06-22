@@ -1,0 +1,13 @@
+C:\SonicSearch\bin\Debug\ObjectListView.dll
+C:\SonicSearch\bin\Debug\ObjectListView.pdb
+C:\SonicSearch\bin\Debug\ObjectListView.XML
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\obj\Debug\ObjectListView2022.csproj.AssemblyReference.cache
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\obj\Debug\BrightIdeasSoftware.Properties.Resources.resources
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\obj\Debug\BrightIdeasSoftware.ColumnSelectionForm.resources
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\obj\Debug\ObjectListView2022.csproj.GenerateResource.cache
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\obj\Debug\ObjectListView2022.csproj.CoreCompileInputs.cache
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\obj\Debug\ObjectListView.dll
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\obj\Debug\ObjectListView.pdb
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\bin\Debug\ObjectListView.XML
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\bin\Debug\ObjectListView.dll
+C:\Users\Erol\Desktop\FolderSize\FolderSize\ObjectListView\bin\Debug\ObjectListView.pdb
