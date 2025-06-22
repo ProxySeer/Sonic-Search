@@ -1,31 +1,44 @@
 # 🚀 Sonic Search – Lightning-Fast File Search & Analysis Tool (Open Source)
 
-**Sonic Search** is a blazing-fast file search and analysis tool built for NTFS file systems.  
-It uses the Master File Table (MFT) to scan and index files and folders on your system with **unmatched performance**.
-
-> ⚡ Built by a long-time database administrator and performance enthusiast, this side project is now available as open source!
+**Sonic Search** is a blazing-fast file search and folder size analysis tool built specifically for NTFS file systems.  
+It leverages the Master File Table (MFT) to scan and index all files on your system with incredible speed and accuracy.
 
 ---
 
 ## 🔍 Key Features
 
 - **Super-fast file indexing**  
-  Scans millions of files in seconds using low-level MFT access.
+  Instantly scans millions of files using low-level access to the MFT.
 
-- **Instant search**  
-  Regex-powered, wildcard-supported search with near-zero delay.
+- **Instant file search**  
+  Search results appear immediately — even on millions of files.
 
-- **Folder size analysis**  
-  Quickly calculates and sorts folder sizes, even on huge drives.
+- **Wildcard & fuzzy search**  
+  Easily search with partial filenames or patterns like `*report*.pdf`, `log202?.txt`, etc.
 
 - **Regex support**  
-  Use powerful pattern matching to find exactly what you need.
+  Advanced users can write regular expressions for precise matching.
 
-- **Clean, responsive UI**  
-  Built for usability and productivity.
+- **Folder size analysis**  
+  Get total size of any folder — including subfolders — in seconds.
+
+- **Modern, responsive UI**  
+  Lightweight and user-friendly interface designed for efficiency.
 
 - **100% open source**  
-  Modify it, extend it, or contribute back!
+  Contributions and forks are welcome!
+
+---
+
+## 🔎 Advanced Search Support
+
+Sonic Search supports multiple powerful search modes:
+
+- 🔡 **Partial & fuzzy search** (e.g., `log2023` matches `log_2023_final.txt`)
+- 🔤 **Wildcard search** (e.g., `*report*.pdf`)
+- 📐 **Regex search** (e.g., `.*(config|backup).*\.ini$`)
+
+Just type your search term, and results are instant — even across millions of files.
 
 ---
 
@@ -37,28 +50,47 @@ It uses the Master File Table (MFT) to scan and index files and folders on your 
 | 1.8M+ files         | 6 sec     | Instant     |
 | 3M+ files           | 10 sec    | Instant     |
 
-> 🧪 Benchmarked on NTFS volumes. Actual times may vary slightly depending on disk speed and system load.
+> Benchmarked on SSD-based NTFS volumes. Performance may vary depending on hardware.
+
+---
+
+## 🖼️ Screenshots
+
+### 🔥 Indexing Millions of Files in Seconds
+![SonicSearch Performance 1](screenshots/performance1.png)  
+> Indexing 1.8 million files takes just **6 seconds**. Designed for speed.
+
+---
+
+### ⚡ Instant Search Results
+![SonicSearch Performance 2](screenshots/performance2.png)  
+> Search returns results **immediately**, even with complex queries or wildcards.
+
+---
+
+### 📁 Folder Size Calculation Across Entire System
+![SonicSearch Folder Size](screenshots/foldersize1.png)  
+> Instantly calculates total size of folders and subfolders. Great for disk cleanup and analysis.
 
 ---
 
 ## 🛠️ Ideal For
 
-- Power users and system administrators  
-- Developers working with large codebases, logs, or data files  
-- Anyone who wants a faster alternative to Windows File Explorer Search
+- Power users and sysadmins managing large systems
+- Developers handling massive log or code repositories
+- Anyone who’s frustrated with slow Windows search
 
 ---
 
 ## 📥 Download & Try It
 
-🔗 GitHub Release & Demo coming soon!  
-Watch this repo or star it to stay updated.
+🔗 GitHub release and binaries coming soon!
 
 ---
 
-## ⭐ Feedback & Contributions Welcome
+## 💬 Feedback & Contributions
 
-If Sonic Search helps you, consider giving it a ⭐ or opening an issue with ideas or bugs.  
-Pull requests are welcome!
+If Sonic Search is useful to you, give it a ⭐, suggest features via issues, or contribute code!
 
 ---
+
