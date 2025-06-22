@@ -44,11 +44,11 @@ Just type your search term, and results are instant — even across millions of 
 
 ## 📊 Performance Benchmarks
 
-| Files Scanned       | Scan Time | Search Time |
-|---------------------|-----------|-------------|
-| 500K+ files         | 2 sec     | Instant     |
-| 1.8M+ files         | 6 sec     | Instant     |
-| 3M+ files           | 10 sec    | Instant     |
+| Files Scanned       | Scan Time | 
+|---------------------|-----------|
+| 500K+ files         | 2 sec     | 
+| 1.8M+ files         | 6 sec     | 
+| 3M+ files           | 10 sec    | 
 
 > Benchmarked on SSD-based NTFS volumes. Performance may vary depending on hardware.
 
