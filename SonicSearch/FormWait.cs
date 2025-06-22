@@ -20,7 +20,7 @@ public class FormWait : Form
         this.Height = 140;
         this.BackColor = Color.White;
 
-        // 🟦 Title panel
+      
         titlePanel = new Panel
         {
             Height = 32,
@@ -32,7 +32,7 @@ public class FormWait : Form
         titlePanel.MouseUp += Drag_MouseUp;
         this.Controls.Add(titlePanel);
 
-        // 🏷️ Title label
+      
         label = new Label
         {
             Text = "Please wait...",
@@ -47,7 +47,7 @@ public class FormWait : Form
         label.MouseUp += Drag_MouseUp;
         titlePanel.Controls.Add(label);
 
-        // ❌ Hide button
+      
         btnHide = new Button
         {
             Text = "✖",
@@ -61,7 +61,7 @@ public class FormWait : Form
         btnHide.Click += BtnHide_Click;
         titlePanel.Controls.Add(btnHide);
 
-        // 📊 Status label at the bottom
+     
         statusLabel = new Label
         {
             Text = "Analyzing files...",
@@ -74,7 +74,7 @@ public class FormWait : Form
         };
         this.Controls.Add(statusLabel);
 
-        // 🌀 PictureBox near bottom
+        
         pictureBox = new PictureBox
         {
             Size = new Size(48, 48),
