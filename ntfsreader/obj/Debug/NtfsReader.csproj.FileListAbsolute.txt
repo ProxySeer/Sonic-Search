@@ -1,9 +1,0 @@
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\bin\Debug\NtfsReader.dll
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\bin\Debug\NtfsReader.pdb
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\bin\Debug\System.Buffers.dll
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\bin\Debug\System.Buffers.xml
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\obj\Debug\NtfsReader.csproj.AssemblyReference.cache
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\obj\Debug\NtfsReader.csproj.CoreCompileInputs.cache
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\obj\Debug\NtfsReader.csproj.Up2Date
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\obj\Debug\NtfsReader.dll
-C:\Users\Erol\Desktop\FolderSize\FolderSize\ntfsreader\obj\Debug\NtfsReader.pdb
