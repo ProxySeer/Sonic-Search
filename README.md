@@ -25,6 +25,13 @@ It leverages the Master File Table (MFT) to scan and index all files on your sys
 - **Modern, responsive UI**  
   Lightweight and user-friendly interface designed for efficiency.
 
+- **Right-click file actions**  
+  Quickly:
+  - 🔓 Open file
+  - 📂 Open file location in Explorer
+  - 📋 Copy full path
+  - ⚙️ View file properties
+
 - **100% open source**  
   Contributions and forks are welcome!
 
@@ -85,6 +92,8 @@ Just type your search term, and results are instant — even across millions of 
 ## 📥 Download & Try It
 
 🔗 GitHub release and binaries coming soon!
+
+🧑‍💻 GitHub Repo: [https://github.com/ProxySeer/Sonic-Search](https://github.com/ProxySeer/Sonic-Search)
 
 ---
 
