@@ -1,0 +1,13 @@
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSearch.csproj.AssemblyReference.cache
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSearch.FormMain.resources
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\FormWait.resources
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSearch.Properties.Resources.resources
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSearch.csproj.GenerateResource.cache
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSearch.csproj.CoreCompileInputs.cache
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\bin\Debug\SonicSearch.exe.config
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\bin\Debug\SonicSearch.exe
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\bin\Debug\SonicSearch.pdb
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\bin\Debug\System.Buffers.dll
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSea.63642D53.Up2Date
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSearch.exe
+C:\Users\Erol\Desktop\FolderSize\FolderSize\SonicSearch\obj\Debug\SonicSearch.pdb
