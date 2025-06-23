@@ -644,14 +644,14 @@ namespace SonicSearch
 
         private void btnContact_Click(object sender, EventArgs e)
         {
-            string url = "https://www.linkedin.com/in/erol-%C3%A7imen-7b86552a0/"; // 
+            string url = "";  
 
             try
             {
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = url,
-                    UseShellExecute = true // 
+                    UseShellExecute =  
                 };
                 Process.Start(psi);
             }
