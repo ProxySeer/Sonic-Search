@@ -26,7 +26,12 @@
 ![Folder Size](screenshots/foldersize1.png)
 
   
-- [ObjectListView](https://objectlistview.sourceforge.net/cs/index.html) (📦 Requires installing [NuGet package](https://www.nuget.org/packages/ObjectListView.Official/) before compiling)
+- Uses [ObjectListView for .NET](https://objectlistview.sourceforge.net/cs/index.html)  
+ You’ll need to install [ObjectListView.Official](https://www.nuget.org/packages/ObjectListView.Official/) NuGet package to compile the project.
+
+>  **Licensing Note**:  
+> Sonic Search uses **ObjectListView** which is under the **GPL v3 license**.  
+> Please be aware of the licensing terms if you plan to modify, redistribute, or integrate it into other projects.
 
 
 
