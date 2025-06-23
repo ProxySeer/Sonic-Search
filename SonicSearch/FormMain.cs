@@ -246,7 +246,7 @@ namespace SonicSearch
 
             var folderNodes = new ConcurrentDictionary<string, FolderNode>(StringComparer.OrdinalIgnoreCase);
 
-            // Create root folder node
+           
             folderNodes[rootPath] = new FolderNode
             {
                 Name = Path.GetFileName(rootPath),
@@ -255,7 +255,7 @@ namespace SonicSearch
                 TotalSize = 0
             };
 
-            // Step 1: Create folder nodes in parallel
+            
             Parallel.ForEach(allNodes, node =>
             {
                 if (string.Equals(Path.GetFileName(node.FullName), "$BadClus", StringComparison.OrdinalIgnoreCase))
@@ -278,7 +278,7 @@ namespace SonicSearch
                 });
             });
 
-            // Step 2: Link folder nodes to their parents (sequential - to avoid race conditions)
+ 
             foreach (var folder in folderNodes.Values.ToList())
             {
                 if (string.Equals(folder.Name, "$BadClus", StringComparison.OrdinalIgnoreCase))
@@ -294,7 +294,7 @@ namespace SonicSearch
                 }
             }
 
-            // Step 3: Add files as FileNodes in parallel, collecting children per folder in thread-safe way
+         
             var folderChildrenMap = new ConcurrentDictionary<string, List<FileNode>>();
 
             Parallel.ForEach(allNodes, node =>
@@ -334,7 +334,7 @@ namespace SonicSearch
                     Size = size > 0 ? size : 0
                 };
 
-                // Add to folderChildrenMap per folder (thread safe)
+     
                 var childrenList = folderChildrenMap.GetOrAdd(parentDir, _ => new List<FileNode>());
                 lock (childrenList)
                 {
@@ -342,7 +342,7 @@ namespace SonicSearch
                 }
             });
 
-            // Step 4: After all files processed, add the collected children to folder nodes
+
             foreach (var kvp in folderChildrenMap)
             {
                 if (folderNodes.TryGetValue(kvp.Key, out var folderNode))
@@ -356,7 +356,7 @@ namespace SonicSearch
 
             var rootNode = folderNodes[rootPath];
 
-            // Step 5: Compute sizes sequentially (recursive)
+          
             void ComputeSizes(FolderNode folder)
             {
                 folder.TotalSize = 0;
@@ -448,13 +448,13 @@ namespace SonicSearch
         {
             if (string.IsNullOrWhiteSpace(pattern))
             {
-                // No filter, accept all
+           
                 return _ => true;
             }
 
             if (pattern.Contains("*"))
             {
-                // Convert wildcard pattern (e.g. battle*.exe) to regex ^battle.*\.exe$
+        
                 var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
                 var regex = new Regex(regexPattern, RegexOptions.IgnoreCase);
 
@@ -466,7 +466,7 @@ namespace SonicSearch
             }
             else
             {
-                // Plain text search, match filename contains pattern ignoring case
+         
                 return fileItem => fileItem.FileName.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0;
             }
         }
@@ -485,14 +485,14 @@ namespace SonicSearch
                 return;
 
 
-            // Your current tab key for favorites
+         
 
             if (string.IsNullOrWhiteSpace(pattern))
             {
                 currentRegex = null;
 
                 // objectListView1.ModelFilter = null;
-                // Show all filesystem items
+                
                 dataSourceFileSystem.SetObjects(dataSourceFileSystem.AllItems);
                 fastObjectLvFileSystem.BeginUpdate();
                 fastObjectLvFileSystem.BuildList();
@@ -532,7 +532,7 @@ namespace SonicSearch
 
             string? ext = extFilter?.ToLowerInvariant(); // cache lowercase
 
-            // Use the raw search input string, NOT regex pattern string
+           
             var searchPattern = txtSearch.Text.Trim();
 
             var fileNameMatcher = CreateFastMatcher(searchPattern, currentRegex);
@@ -628,7 +628,7 @@ namespace SonicSearch
             using (var dialog = new FolderBrowserDialog())
             {
                 dialog.Description = "Select a folder";
-                dialog.ShowNewFolderButton = true; // Set to false if you don't want the user to create a new folder
+                dialog.ShowNewFolderButton = true; 
 
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -644,14 +644,14 @@ namespace SonicSearch
 
         private void btnContact_Click(object sender, EventArgs e)
         {
-            string url = "https://www.linkedin.com/in/erol-%C3%A7imen-7b86552a0/"; // 🔗 Replace with your desired URL
+            string url = "https://www.linkedin.com/in/erol-%C3%A7imen-7b86552a0/"; // 
 
             try
             {
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = url,
-                    UseShellExecute = true // ✅ Required for launching URLs in .NET Core / .NET 5+
+                    UseShellExecute = true // 
                 };
                 Process.Start(psi);
             }
@@ -677,11 +677,11 @@ namespace SonicSearch
             lblTotalCount.Text = "Total Count: 0";
             lblTotalSize.Text = "Total Size: 0 B";
 
-            // Restart stopwatch if needed
+       
             stopwatch.Reset();
             stopwatch.Start();
 
-            // Reload asynchronously
+           
             Task.Run(() => LoadFileSystemData("C"));
         }
 
