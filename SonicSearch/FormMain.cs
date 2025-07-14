@@ -651,7 +651,7 @@ namespace SonicSearch
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = url,
-                    UseShellExecute =  
+                    UseShellExecute = true
                 };
                 Process.Start(psi);
             }
