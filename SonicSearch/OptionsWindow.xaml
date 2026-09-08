@@ -1,0 +1,630 @@
+<Window x:Class="SonicSearch.OptionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="560" Width="480"
+        WindowStartupLocation="CenterOwner" Background="#18181B" Foreground="#E4E4E7"
+        WindowStyle="None" AllowsTransparency="True" ResizeMode="NoResize"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Window.Resources>
+        <!-- Dark ScrollBar for OptionsWindow -->
+        <SolidColorBrush x:Key="ScrollBarTrackBrush" Color="#1E1E22"/>
+        <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#3E3E46"/>
+        <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#50505A"/>
+        <SolidColorBrush x:Key="ScrollBarThumbDraggingBrush" Color="#646472"/>
+
+        <Style x:Key="ModernScrollThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Border Background="{StaticResource ScrollBarThumbBrush}" CornerRadius="6" Margin="2,0,2,0"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource ScrollBarThumbHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter Property="Background" Value="{StaticResource ScrollBarThumbDraggingBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="MinWidth" Value="14"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ModernScrollThumb}"/>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark ToolTip Style -->
+        <Style TargetType="ToolTip">
+            <Setter Property="Background" Value="#252528"/>
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+            <Setter Property="BorderBrush" Value="#44444C"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="2" Opacity="0.5"/>
+                            </Border.Effect>
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark TextBox Style -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#27272A"/>
+            <Setter Property="Foreground" Value="#F4F4F5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="0"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#6366F1"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Dark ComboBox Style -->
+        <ControlTemplate x:Key="DarkComboBoxToggleButton" TargetType="{x:Type ToggleButton}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="28" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Border" Grid.ColumnSpan="2" CornerRadius="6" Background="#27272A" BorderBrush="#3F3F46" BorderThickness="1" />
+                <Path x:Name="Arrow" Grid.Column="1" Fill="#A1A1AA" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0 Z" />
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="#6366F1" />
+                    <Setter TargetName="Arrow" Property="Fill" Value="#FFFFFF" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Foreground" Value="#F4F4F5"/>
+            <Setter Property="Background" Value="#1E1E22"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" Margin="2,1">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3F3F46"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4F46E5"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ComboBox}">
+            <Setter Property="Foreground" Value="#F4F4F5"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Template="{StaticResource DarkComboBoxToggleButton}" Grid.Column="2" Focusable="false"
+                                          IsChecked="{Binding Path=IsDropDownOpen,Mode=TwoWay,RelativeSource={RelativeSource TemplatedParent}}" ClickMode="Press"/>
+                            <ContentPresenter Name="ContentSite" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              Margin="10,0,28,0" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder" Background="#1E1E22" BorderThickness="1" BorderBrush="#3F3F46" CornerRadius="6" Margin="0,3,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Opacity="0.6"/>
+                                        </Border.Effect>
+                                        <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#E4E4E7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Dark Tab styling -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#A1A1AA"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,9"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="Transparent" CornerRadius="6,6,0,0" Padding="{TemplateBinding Padding}" Margin="0,0,4,0">
+                            <StackPanel>
+                                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Border x:Name="indicator" Height="2" Margin="0,7,0,-9" Background="Transparent" CornerRadius="1"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="indicator" Property="Background" Value="#6366F1"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#E4E4E7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Filter-command "badge" used on the Filters help tab -->
+        <Style x:Key="FilterCommandRow" TargetType="Border">
+            <Setter Property="Background" Value="#212124"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="FilterCommandBadge" TargetType="Border">
+            <Setter Property="Background" Value="#2A2A30"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="7,3"/>
+        </Style>
+    </Window.Resources>
+
+    <Border BorderBrush="#27272A" BorderThickness="1" CornerRadius="10" Background="#18181B">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" BlurRadius="25" ShadowDepth="0" Opacity="0.7"/>
+        </Border.Effect>
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,18">
+                <TextBlock Text="Settings" FontSize="18" FontWeight="Bold" Foreground="#FAFAFA" VerticalAlignment="Center"/>
+                <Button Content="✕" Click="BtnCancel_Click" HorizontalAlignment="Right"
+                        Width="28" Height="28" Background="Transparent" Foreground="#A1A1AA"
+                        BorderThickness="0" FontSize="14" Cursor="Hand" ToolTip="Close (Esc)">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#3F3F46"/>
+                                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+
+            <!-- Settings Content -->
+            <TabControl Grid.Row="1" x:Name="tabOptions">
+            <TabItem Header="General">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,-8,0" Padding="0,0,10,0">
+                <StackPanel>
+                    <TextBlock Text="Global Toggle Hotkey:" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="cmbHotkeyModifier" Grid.Column="0" Height="34" ToolTip="Modifier key combination to activate search anywhere">
+                            <ComboBoxItem Content="Ctrl" IsSelected="True"/>
+                            <ComboBoxItem Content="Ctrl + Alt"/>
+                            <ComboBoxItem Content="Ctrl + Shift"/>
+                            <ComboBoxItem Content="Alt"/>
+                            <ComboBoxItem Content="Win"/>
+                        </ComboBox>
+                        <TextBlock Grid.Column="1" Text="+" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#71717A" FontWeight="Bold"/>
+                        <TextBox x:Name="txtHotkeyKey" Grid.Column="2" MaxLength="1" Text="S" Height="34" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" FontSize="14" ToolTip="Letter or number key to press with the modifier"/>
+                    </Grid>
+
+                    <TextBlock Text="Search Mode (Matching Strategy):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <ComboBox x:Name="cmbSearchMode" Height="34" Margin="0,0,0,14" ToolTip="Choose default search matching style">
+                        <ComboBoxItem Content="Contains (Default)" IsSelected="True"/>
+                        <ComboBoxItem Content="Starts With"/>
+                        <ComboBoxItem Content="Exact Match"/>
+                        <ComboBoxItem Content="Regex"/>
+                    </ComboBox>
+
+                    <TextBlock Text="Search Debounce Delay (ms):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <TextBox x:Name="txtDebounce" Margin="0,0,0,14" Height="34" ToolTip="Delay in milliseconds before executing query while typing. 100-150ms recommended."/>
+
+                    <TextBlock Text="Periodic Full Re-index (Minutes, 0 = Disabled):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <TextBox x:Name="txtReindexMinutes" Margin="0,0,0,14" Height="34" ToolTip="Automatically refreshes the entire NTFS index every X minutes in the background (e.g. 30 min). Set 0 to disable."/>
+
+                    <TextBlock Text="Max Search Results (Top N):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <TextBox x:Name="txtMaxResults" Margin="0,0,0,14" Height="34" ToolTip="Maximum number of items returned in search results (e.g. 50 or 100)"/>
+
+                    <TextBlock Text="Prioritized Extensions (e.g. .exe, .sln, .md):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <TextBox x:Name="txtPrioritize" Margin="0,0,0,14" Height="34" ToolTip="Extensions placed at the very top of results when matching"/>
+
+                    <TextBlock Text="Excluded Extensions (e.g. .dll, .sys, .cache):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,14"/>
+                    <TextBox x:Name="txtExclude" Margin="0,0,0,14" Height="34" ToolTip="Extensions excluded from search results completely"/>
+
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,12" ToolTip="Quick Start top result on Enter">
+                        <StackPanel>
+                            <CheckBox x:Name="chkQuickStart" Content="Quick Start on Enter" FontWeight="SemiBold"/>
+                            <TextBlock Text="Pressing Enter directly starts/opens the first search result immediately instead of filling suggestions." 
+                                       Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="22,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,8" ToolTip="Monitors real-time disk changes for new, renamed, or deleted files.">
+                        <StackPanel>
+                            <CheckBox x:Name="chkRealtimeWatcher" Content="Real-time File Watcher (Instant live sync)" FontWeight="SemiBold"/>
+                            <TextBlock Text="Monitors specified folders without whole-drive overhead. Zero CPU fan noise." 
+                                       Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="22,4,0,10"/>
+                            
+                            <TextBlock Text="Monitored Folders (comma/semicolon separated paths):" Foreground="#A1A1AA" FontSize="11" FontWeight="SemiBold" Margin="22,0,0,4"/>
+                            <Grid Margin="22,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="38"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtMonitoredFolders" Grid.Column="0" Height="32" ToolTip="Leave empty to monitor default user folders (Desktop, Documents, Downloads). Add custom paths or click + to browse."/>
+                                <Button x:Name="btnAddFolder" Grid.Column="1" Content="+" Click="BtnAddFolder_Click" Margin="6,0,0,0"
+                                        Background="#27272A" Foreground="#FFFFFF" BorderBrush="#3F3F46" BorderThickness="1"
+                                        FontWeight="Bold" FontSize="16" Cursor="Hand" ToolTip="Select folder to monitor and append to list">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="#3F3F46"/>
+                                                                <Setter TargetName="bd" Property="BorderBrush" Value="#6366F1"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                            <TextBlock Text="Tip: Default monitors Desktop, Documents, and Downloads. Click + to easily append extra folders." 
+                                       Foreground="#64748B" FontSize="10.5" TextWrapping="Wrap" Margin="22,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- Index Folder Inclusion / Exclusion -->
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,12" ToolTip="Configure which folders are indexed into memory from MFT.">
+                        <StackPanel>
+                            <TextBlock Text="Index Folder Scope (MFT Pruning)" FontWeight="SemiBold" Foreground="#FAFAFA" FontSize="12.5"/>
+                            <TextBlock Text="Filter which folders are kept in the index. Speeds up indexing and reduces RAM usage." 
+                                       Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,10"/>
+
+                            <TextBlock Text="Included Folders (Whitelist - Leave empty to index entire drive):" Foreground="#A1A1AA" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="38"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtIncludedFolders" Grid.Column="0" Height="32" ToolTip="Leave empty to index entire disk. Enter specific folders (e.g. C:\Users, C:\Projects) to index only them."/>
+                                <Button x:Name="btnAddIncludedFolder" Grid.Column="1" Content="+" Click="BtnAddIncludedFolder_Click" Margin="6,0,0,0"
+                                        Background="#27272A" Foreground="#FFFFFF" BorderBrush="#3F3F46" BorderThickness="1"
+                                        FontWeight="Bold" FontSize="16" Cursor="Hand" ToolTip="Select folder to include and append">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="#3F3F46"/>
+                                                                <Setter TargetName="bd" Property="BorderBrush" Value="#6366F1"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+
+                            <TextBlock Text="Excluded Folders (Blacklist - Ignored during index):" Foreground="#A1A1AA" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="38"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtExcludedFolders" Grid.Column="0" Height="32" ToolTip="Paths or folder names to exclude from index (e.g. $Recycle.Bin, Windows, node_modules)"/>
+                                <Button x:Name="btnAddExcludedFolder" Grid.Column="1" Content="+" Click="BtnAddExcludedFolder_Click" Margin="6,0,0,0"
+                                        Background="#27272A" Foreground="#FFFFFF" BorderBrush="#3F3F46" BorderThickness="1"
+                                        FontWeight="Bold" FontSize="16" Cursor="Hand" ToolTip="Select folder to exclude and append">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="#3F3F46"/>
+                                                                <Setter TargetName="bd" Property="BorderBrush" Value="#EF4444"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Filters Help">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,-8,0" Padding="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="Type any of these into the search box - combine as many as you like, in any order."
+                                   Foreground="#71717A" FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="ext: / type:" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Filter by file extension" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="ext:pdf   ext:exe   type:docx" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="Matches files with that extension only." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="folder: / file:" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Restrict to folders or files" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="folder:project   file:report   type:folder   kind:file" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="folder:/type:folder shows directories only; file:/type:file shows files only." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="size:" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Filter by file size" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="size:&gt;10mb   size:&lt;500kb   size:&gt;1gb" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="Supports kb, mb, gb suffixes with &gt; (larger than) or &lt; (smaller than)." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="date: / modified:" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Filter by modification date" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="date:today   date:yesterday   date:&gt;7d   date:&gt;2026-01-01" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="today/yesterday, &gt;Nd for the last N days, or a specific date (after)." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="location: / path: / in:" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Restrict to a folder" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="location:desktop   path:downloads   in:C:\Projects" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="Aliases: desktop, downloads, documents, pictures, music, videos, temp, user, system, programfiles - or any custom path." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="content: / text:" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Search inside file contents" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="content:password   text:&quot;TODO fix&quot;" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="Full-text search - slower than a name search, so combine it with ext:/location: to narrow the file set first." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="* ?" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Wildcards" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="battle*   *.config   report_202?.pdf" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="* matches any run of characters, works in Contains/Starts With modes. Regex mode (Settings) enables full regular expressions instead." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}" Margin="0,0,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="combine" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Combining filters" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="ext:pdf location:downloads size:&gt;1mb invoice" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="Any leftover plain words become the name/text search term, matched using the Search Mode set in General." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="About">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,-8,0" Padding="0,0,10,0">
+                    <StackPanel>
+                        <Border Background="#212124" CornerRadius="10" Padding="20,18" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="⚡ SonicSearch" FontSize="20" FontWeight="Bold" Foreground="#FAFAFA"/>
+                                <TextBlock x:Name="lblAppVersion" Text="Version 1.0.0" Foreground="#818CF8" FontSize="12.5" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                                <TextBlock Text="Fast, full-context file search for NTFS drives - reads the Master File Table directly instead of walking folders, so it finds anything on the drive almost instantly."
+                                           Foreground="#A1A1AA" FontSize="12.5" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#212124" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="How it stays fast" FontWeight="SemiBold" Foreground="#FAFAFA" FontSize="13" Margin="0,0,0,8"/>
+                                <TextBlock Foreground="#A1A1AA" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,5">
+                                    <Run Text="•  "/><Run Text="Indexes the whole drive in one pass by reading the NTFS Master File Table directly (no folder-by-folder walk)." FontWeight="Normal"/>
+                                </TextBlock>
+                                <TextBlock Foreground="#A1A1AA" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,5">
+                                    <Run Text="•  "/><Run Text="Watches the NTFS USN change journal afterward, so new/renamed/deleted files update the index without a full rescan."/>
+                                </TextBlock>
+                                <TextBlock Foreground="#A1A1AA" FontSize="12" TextWrapping="Wrap">
+                                    <Run Text="•  "/><Run Text="A filename-prefix trie accelerates plain &quot;starts with&quot; searches on top of the parallel scan."/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#212124" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Requirements" FontWeight="SemiBold" Foreground="#FAFAFA" FontSize="13" Margin="0,0,0,6"/>
+                                <TextBlock Text="Run as Administrator - reading the raw NTFS volume and the USN journal requires elevation. Works on NTFS-formatted drives."
+                                           Foreground="#A1A1AA" FontSize="12" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Built on a Master File Table reader derived from Jeroen Kessels' JkDefrag (LGPL)."
+                                   Foreground="#52525B" FontSize="10.5" TextWrapping="Wrap" Margin="2,4,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            </TabControl>
+
+            <!-- Actions -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                <Button Content="Cancel" Click="BtnCancel_Click" Width="85" Height="34" Margin="0,0,10,0"
+                        Background="#27272A" Foreground="#E4E4E7" BorderThickness="0" Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#3F3F46"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="Save" Click="BtnSave_Click" Width="85" Height="34"
+                        Background="#3F3F46" Foreground="#FFFFFF" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#52525B"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
