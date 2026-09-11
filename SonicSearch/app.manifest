@@ -5,7 +5,11 @@
 	<trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
 		<security>
 			<requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
-				<requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+				<!-- asInvoker, not requireAdministrator: an elevated window can't accept
+				     drag-and-drop from Explorer (UIPI blocks lower-to-higher-integrity drops),
+				     so elevation now happens at runtime instead (App.xaml.cs OnStartup), only
+				     when the indexing-service Settings option is off. See ServiceInstallHelper.cs. -->
+				<requestedExecutionLevel level="asInvoker" uiAccess="false" />
 			</requestedPrivileges>
 		</security>
 	</trustInfo>

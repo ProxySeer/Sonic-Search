@@ -60,6 +60,13 @@ namespace System.IO.Filesystem.Ntfs
     {
         private SafeFileHandle _volumeHandle;
         private UInt64 _journalId;
+        private volatile bool _disposed;
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UsnJournal));
+        }
 
         public UsnJournal(DriveInfo driveInfo)
         {
@@ -94,7 +101,7 @@ namespace System.IO.Filesystem.Ntfs
         /// </summary>
         public Int64 CurrentUsn
         {
-            get { return QueryJournal().NextUsn; }
+            get { ThrowIfDisposed(); return QueryJournal().NextUsn; }
         }
 
         private unsafe void EnsureJournalExists()
@@ -169,6 +176,7 @@ namespace System.IO.Filesystem.Ntfs
         /// </exception>
         public List<UsnChange> GetChanges(Int64 startUsn)
         {
+            ThrowIfDisposed();
             USN_JOURNAL_DATA_V0 journalData = QueryJournal();
 
             if (journalData.UsnJournalID != _journalId)
@@ -271,6 +279,7 @@ namespace System.IO.Filesystem.Ntfs
         /// </summary>
         public string ResolvePath(UInt64 fileReferenceNumber)
         {
+            ThrowIfDisposed();
             var fileId = new FILE_ID_DESCRIPTOR
             {
                 Size = Marshal.SizeOf(typeof(FILE_ID_DESCRIPTOR)),
@@ -306,11 +315,14 @@ namespace System.IO.Filesystem.Ntfs
 
         public void Dispose()
         {
-            if (_volumeHandle != null)
-            {
-                _volumeHandle.Dispose();
-                _volumeHandle = null;
-            }
+            // Deliberately don't null out _volumeHandle here: a concurrent call already past
+            // the ThrowIfDisposed() check (e.g. a background USN poll still resolving a path
+            // when the window closes) would otherwise pass a null SafeHandle into the native
+            // OpenFileById/DeviceIoControl P/Invoke calls, which fail with a raw, unhelpful
+            // ArgumentNullException from the interop marshaler instead of the clean
+            // ObjectDisposedException a disposed-but-non-null SafeHandle produces.
+            _disposed = true;
+            _volumeHandle?.Dispose();
         }
     }
 }

@@ -7,10 +7,19 @@ using System.Windows.Forms;
 public static class FileUtils
 {
     /// <summary>
-    /// Opens the specified file using the default associated application.
+    /// Opens the specified file using the default associated application - or, for a bookmark's
+    /// URL (see SonicSearch.BrowserBookmarks), the default browser. ShellExecute happily accepts
+    /// either, so the only extra step is skipping the File.Exists/Directory.Exists check, which a
+    /// URL would never pass.
     /// </summary>
     public static void Open(string filePath)
     {
+        if (SonicSearch.BrowserBookmarks.IsUrl(filePath))
+        {
+            Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+            return;
+        }
+
         if (File.Exists(filePath) || Directory.Exists(filePath))
         {
             Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
@@ -26,7 +35,7 @@ public static class FileUtils
     /// </summary>
     public static void CopyPathToClipboard(string filePath)
     {
-        if (File.Exists(filePath) || Directory.Exists(filePath))
+        if (SonicSearch.BrowserBookmarks.IsUrl(filePath) || File.Exists(filePath) || Directory.Exists(filePath))
         {
             Clipboard.SetText(filePath);
         }
@@ -75,6 +84,13 @@ public static class FileUtils
     /// </summary>
     public static void OpenFileLocationAndSelect(string filePath)
     {
+        if (SonicSearch.BrowserBookmarks.IsUrl(filePath))
+        {
+            MessageBox.Show("This is a bookmark, not a file - there's no folder to open.",
+                "Not a File", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         if (File.Exists(filePath) || Directory.Exists(filePath))
         {
             Process.Start("explorer.exe", $"/select,\"{filePath}\"");
@@ -107,6 +123,13 @@ public static class FileUtils
     /// </summary>
     public static void ShowFileProperties(string filePath)
     {
+        if (SonicSearch.BrowserBookmarks.IsUrl(filePath))
+        {
+            MessageBox.Show("This is a bookmark, not a file - there are no file properties to show.",
+                "Not a File", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         if (!File.Exists(filePath) && !Directory.Exists(filePath))
         {
             ShowMissingFileWarning(filePath);

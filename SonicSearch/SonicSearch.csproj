@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\NtfsReader\NtfsReader.csproj" />
+    <ProjectReference Include="..\SonicSearch.Contracts\SonicSearch.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
@@ -31,4 +32,24 @@
   <ItemGroup>
     <Reference Include="System.Web" />
   </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\1zno.gif" />
+    <Resource Include="Resources\Sonic.png" />
+  </ItemGroup>
+
+  <!-- Dev/local-build convenience only: ServiceInstallHelper.cs assumes SonicSearchService.exe
+       sits next to SonicSearch.exe (side-by-side deployment). A real installer/publish step is
+       the actual place this copy belongs for a shipped build - this just keeps `dotnet build
+       SonicSearch.sln` usable for testing without a manual copy step. Silently does nothing if
+       the service hasn't been built yet (e.g. first build before SonicSearch.Service exists). -->
+  <Target Name="CopyServiceExeForLocalTesting" AfterTargets="Build">
+    <ItemGroup>
+      <ServiceOutputFiles Include="..\SonicSearch.Service\bin\$(Configuration)\net48\SonicSearchService.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ServiceOutputFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true"
+          Condition="Exists('..\SonicSearch.Service\bin\$(Configuration)\net48\SonicSearchService.exe')" />
+  </Target>
 </Project>

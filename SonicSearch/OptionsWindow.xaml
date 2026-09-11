@@ -4,7 +4,8 @@
         Title="Settings" Height="560" Width="480"
         WindowStartupLocation="CenterOwner" Background="#18181B" Foreground="#E4E4E7"
         WindowStyle="None" AllowsTransparency="True" ResizeMode="NoResize"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
     <Window.Resources>
         <!-- Dark ScrollBar for OptionsWindow -->
         <SolidColorBrush x:Key="ScrollBarTrackBrush" Color="#1E1E22"/>
@@ -319,7 +320,33 @@
                     <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,12" ToolTip="Quick Start top result on Enter">
                         <StackPanel>
                             <CheckBox x:Name="chkQuickStart" Content="Quick Start on Enter" FontWeight="SemiBold"/>
-                            <TextBlock Text="Pressing Enter directly starts/opens the first search result immediately instead of filling suggestions." 
+                            <TextBlock Text="Pressing Enter directly starts/opens the first search result immediately instead of filling suggestions."
+                                       Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="22,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,12" ToolTip="Launch SonicSearch automatically when you sign in">
+                        <StackPanel>
+                            <CheckBox x:Name="chkStartWithWindows" Content="Start SonicSearch at Windows Startup" FontWeight="SemiBold"/>
+                            <TextBlock Text="Adds a sign-in entry so SonicSearch launches automatically. Since it needs Administrator rights, Windows will still show a UAC prompt at each startup."
+                                       Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="22,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,12" ToolTip="Run unelevated using a background service, so files can be dragged in from Explorer">
+                        <StackPanel>
+                            <CheckBox x:Name="chkUseIndexingService" FontWeight="SemiBold">
+                                <TextBlock Text="Enable Background Indexing Service (removes admin prompt, enables drag &amp; drop)" TextWrapping="Wrap"/>
+                            </CheckBox>
+                            <TextBlock Text="SonicSearch normally needs Administrator rights to read the file system index, which is why Windows blocks dragging files into it from Explorer. Turning this on installs a small background service (one-time admin prompt) that does that reading instead, so the app itself can run normally and accept drag &amp; drop. Requires restarting SonicSearch."
+                                       Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="22,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,12" ToolTip="Hide the search window right after opening something">
+                        <StackPanel>
+                            <CheckBox x:Name="chkHideAfterOpen" Content="Hide Window After Opening a Result" FontWeight="SemiBold"/>
+                            <TextBlock Text="After opening a file, folder, or tool, the search window hides itself instead of staying on screen (it keeps running in the tray)."
                                        Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="22,4,0,0"/>
                         </StackPanel>
                     </Border>
@@ -437,8 +464,73 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="Search History" FontWeight="SemiBold" FontSize="13" Foreground="#E4E4E7"/>
+                                <TextBlock Text="Recent searches shown when the search box is empty or focused."
+                                           Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <Button x:Name="btnClearHistory" Grid.Column="1" Content="Clear History" Click="BtnClearHistory_Click"
+                                    Background="#27272A" Foreground="#EF4444" BorderBrush="#3F3F46" BorderThickness="1"
+                                    Padding="14,7" FontSize="12.5" FontWeight="SemiBold" Cursor="Hand"
+                                    VerticalAlignment="Center" Margin="20,0,0,0">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="bd" Property="Background" Value="#3F2323"/>
+                                                            <Setter TargetName="bd" Property="BorderBrush" Value="#EF4444"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Content Search">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,-8,0" Padding="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="Controls what content: search looks inside, and what it skips - previously hardcoded, now editable here. Leave any box empty to use the built-in default list."
+                                   Foreground="#A1A1AA" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                        <TextBlock Text="Searchable Extensions (comma-separated, no dots needed):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtContentTextExtensions" Height="70" Margin="0,0,0,4" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                 ToolTip="File extensions content: will open and scan for a match (e.g. txt, md, json, cs)"/>
+                        <TextBlock Text="Default: txt, md, log, json, xml, html, css, js, ts, cs, cpp, py, java, and other common text/code extensions."
+                                   Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                        <TextBlock Text="Never-Scan Extensions (comma-separated, no dots needed):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtContentBinaryExtensions" Height="70" Margin="0,0,0,4" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                 ToolTip="File extensions content: always skips, even if also listed above - exe, images, archives, media, etc."/>
+                        <TextBlock Text="Default: exe, dll, zip, jpg, png, mp4, mp3, pdf, docx, and other binary/media formats."
+                                   Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                        <TextBlock Text="Skipped Folder Names (comma-separated):" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtContentIgnoredFolders" Height="70" Margin="0,0,0,4" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                 ToolTip="Folder names content: skips anywhere it finds them in a path, e.g. node_modules matches ...\project\node_modules\... - only bypassed when a location: filter explicitly points into one of these folders"/>
+                        <TextBlock Text="Default: node_modules, .git, .vs, obj, bin, AppData\Local, AppData\Roaming, and other build-artifact/dependency folders."
+                                   Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="Filters Help">

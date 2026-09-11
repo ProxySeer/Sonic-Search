@@ -4,53 +4,10 @@
         xmlns:local="clr-namespace:SonicSearch"
         Title="SonicSearch" SizeToContent="Height" Width="750"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        WindowStartupLocation="CenterScreen" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        WindowStartupLocation="CenterScreen" MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        AllowDrop="True" DragEnter="Window_DragEnter" DragOver="Window_DragEnter" Drop="Window_Drop">
     <Window.Resources>
-        <SolidColorBrush x:Key="ScrollBarTrackBrush" Color="#1E1E22"/>
-        <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#3E3E46"/>
-        <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#50505A"/>
-        <SolidColorBrush x:Key="ScrollBarThumbDraggingBrush" Color="#646472"/>
-
-        <Style x:Key="ModernScrollThumb" TargetType="{x:Type Thumb}">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Thumb}">
-                        <Border Background="{StaticResource ScrollBarThumbBrush}" CornerRadius="6" Margin="2,0,2,0"/>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource ScrollBarThumbHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsDragging" Value="True">
-                                <Setter Property="Background" Value="{StaticResource ScrollBarThumbDraggingBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="{x:Type ScrollBar}">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Width" Value="14"/>
-            <Setter Property="MinWidth" Value="14"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ScrollBar}">
-                        <Grid Background="Transparent">
-                            <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                <Track.Thumb>
-                                    <Thumb Style="{StaticResource ModernScrollThumb}"/>
-                                </Track.Thumb>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- Search box "3D" styling: a recessed gradient field, a soft ambient shadow at rest,
              and a blue focus glow, so it reads as a raised/inset control rather than a flat rectangle. -->
         <LinearGradientBrush x:Key="SearchBoxBackgroundBrush" StartPoint="0,0" EndPoint="0,1">
@@ -68,29 +25,30 @@
         <DropShadowEffect x:Key="SearchBoxIdleShadow" Color="Black" BlurRadius="10" ShadowDepth="2" Direction="270" Opacity="0.45"/>
         <DropShadowEffect x:Key="SearchBoxFocusGlow" Color="#3B82F6" BlurRadius="22" ShadowDepth="0" Opacity="0.6"/>
 
-        <Style TargetType="ToolTip">
-            <Setter Property="Background" Value="#252528"/>
-            <Setter Property="Foreground" Value="#EEEEEE"/>
-            <Setter Property="BorderBrush" Value="#44444C"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToolTip">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5" Padding="{TemplateBinding Padding}">
-                            <Border.Effect>
-                                <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="2" Opacity="0.5"/>
-                            </Border.Effect>
-                            <ContentPresenter/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <!-- Dark right-click context menu for result items. The look (background, border,
+             MenuItem hover, Separator lines) comes from implicit ContextMenu/MenuItem/Separator
+             styles in App.xaml, not here - see the comment there for why. -->
+        <ContextMenu x:Key="FileItemContextMenu" Opened="FileItemContextMenu_Opened">
+            <MenuItem Header="Open" Click="CtxOpen_Click"/>
+            <MenuItem Header="Open File Location" Click="CtxOpenLocation_Click"/>
+            <Separator/>
+            <!-- Real submenu items (one per group + a "new group" entry) are built in code
+                 (FileItemContextMenu_Opened), since they depend on the user's current groups -
+                 the placeholder item below is replaced on every open. It has to start with at
+                 least one child, though: WPF decides whether a MenuItem is a submenu header
+                 (Role.SubmenuHeader, which is what makes it open a Popup on hover) once, based
+                 on whether it HasItems at the moment it's first prepared as a logical child of
+                 its parent - not dynamically. Starting empty locked it in as a plain leaf item
+                 forever, so populating .Items later never made the submenu open. -->
+            <MenuItem x:Name="ctxAddToGroup" Header="★ Add to Group">
+                <MenuItem Header="Loading..." IsEnabled="False"/>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Copy Path" Click="CtxCopyPath_Click"/>
+            <MenuItem Header="Copy Name" Click="CtxCopyName_Click"/>
+            <Separator/>
+            <MenuItem Header="Properties" Click="CtxProperties_Click"/>
+        </ContextMenu>
     </Window.Resources>
 
     
@@ -102,10 +60,89 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            
-            <Grid Grid.Row="0" Margin="25,25,25,10">
+
+            <Grid Grid.Row="0" Margin="25,14,25,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Image Source="/Resources/Sonic.png" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Effect>
+                            <DropShadowEffect Color="#60A5FA" BlurRadius="10" ShadowDepth="0" Opacity="0.7"/>
+                        </Image.Effect>
+                    </Image>
+                    <TextBlock Text="Sonic Search" FontSize="13" FontWeight="Bold" VerticalAlignment="Center">
+                        <TextBlock.Foreground>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#93C5FD" Offset="0"/>
+                                <GradientStop Color="#60A5FA" Offset="0.5"/>
+                                <GradientStop Color="#3B82F6" Offset="1"/>
+                            </LinearGradientBrush>
+                        </TextBlock.Foreground>
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="#3B82F6" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnManualReindex" Click="ManualReindex_Click" Width="22" Height="22" Margin="0,0,6,0"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Refresh index now">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="5">
+                                                <Path x:Name="iconPath" Width="12" Height="12" Stretch="Uniform" Fill="#8E8E93"
+                                                      Data="M12,4V1L8,5l4,4V6c3.31,0 6,2.69 6,6c0,1.01 -0.25,1.97 -0.7,2.8l1.46,1.46C19.54,15.03 20,13.57 20,12C20,7.58 16.42,4 12,4zM12,18c-3.31,0 -6,-2.69 -6,-6c0,-1.01 0.25,-1.97 0.7,-2.8L5.24,7.74C4.46,8.97 4,10.43 4,12c0,4.42 3.58,8 8,8v3l4,-4l-4,-4V18z"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bdr" Property="Background" Value="#3F3F46"/>
+                                                    <Setter TargetName="iconPath" Property="Fill" Value="#FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Click="CloseButton_Click" Width="22" Height="22"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Close">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="5">
+                                                <Path x:Name="iconPath" Width="9" Height="9" Stretch="Uniform" Stroke="#8E8E93" StrokeThickness="1.6"
+                                                      Data="M1,1 L9,9 M9,1 L1,9"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bdr" Property="Background" Value="#E81123"/>
+                                                    <Setter TargetName="iconPath" Property="Stroke" Value="#FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="25,14,25,10">
                 <TextBox x:Name="txtSearch" Margin="0"
                          Foreground="White" BorderThickness="1"
                          CaretBrush="#60A5FA" SelectionBrush="#3B82F6"
@@ -143,6 +180,16 @@
                         </ControlTemplate>
                     </TextBox.Template>
                 </TextBox>
+
+                <!-- Shown instead of the search box while in Favorites view, so there's no
+                     empty/disabled textbox sitting there - the search box is fully hidden. -->
+                <Border x:Name="favoritesHeader" CornerRadius="10" Padding="18,0" Visibility="Collapsed"
+                        Background="{StaticResource SearchBoxBackgroundBrush}" BorderBrush="{StaticResource SearchBoxBorderBrush}" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Height="66">
+                        <TextBlock Text="★" FontSize="24" Foreground="#FACC15" VerticalAlignment="Center"/>
+                        <TextBlock Text="Favorites" FontSize="26" FontWeight="Bold" Foreground="White" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
                 <Popup x:Name="popupSuggestions" PlacementTarget="{Binding ElementName=txtSearch}"
                        Placement="Bottom" VerticalOffset="4" AllowsTransparency="True"
@@ -185,16 +232,17 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        
+
                                         <!-- Badge / Tag -->
                                         <Border Grid.Column="0" Background="#2A2A30" CornerRadius="4" Padding="6,2" Margin="0,0,10,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding IconKind}" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/>
                                         </Border>
-                                        
+
                                         <!-- Title -->
                                         <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="#EEEEEE" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        
+
                                         <!-- Description -->
                                         <TextBlock Grid.Column="2" Text="{Binding Description}" Foreground="#808088" FontSize="12" VerticalAlignment="Center" Margin="12,0,10,0"/>
 
@@ -202,7 +250,24 @@
                                         <Border Grid.Column="3" Background="#26262B" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
                                             <TextBlock Text="Tab" Foreground="#A1A1AA" FontSize="10" FontWeight="SemiBold"/>
                                         </Border>
+
+                                        <!-- Remove-from-history button - only history entries get one; a normal
+                                             filter/system-tool suggestion isn't something to "remove". Tag marks
+                                             it for lstSuggestions_PreviewMouseDown to recognize and let its own
+                                             click handler run instead of applying the suggestion underneath it. -->
+                                        <Border x:Name="removeHistoryBtn" Grid.Column="4" Tag="RemoveHistory" Width="20" Height="20" Margin="8,0,0,0"
+                                                CornerRadius="4" Background="Transparent" Cursor="Hand" VerticalAlignment="Center"
+                                                MouseLeftButtonUp="RemoveHistoryItem_Click" ToolTip="Remove from history"
+                                                Visibility="Collapsed">
+                                            <TextBlock Text="✕" Foreground="#A1A1AA" FontSize="11" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                        </Border>
                                     </Grid>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsHistory}" Value="True">
+                                            <Setter TargetName="removeHistoryBtn" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -225,6 +290,29 @@
                                                 <Trigger Property="IsMouseOver" Value="True">
                                                     <Setter TargetName="bdr" Property="Background" Value="#3F3F46"/>
                                                     <Setter TargetName="iconPath" Property="Fill" Value="#FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button x:Name="btnFavoritesToggle" Click="FavoritesToggle_Click" Width="30" Height="30" Margin="0,0,4,0"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Favorites (Ctrl+2)">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="6">
+                                                <Path x:Name="starPath" Width="15" Height="15" Stretch="Uniform" Fill="#8E8E93"
+                                                      Data="M12,2 L15.09,8.26 L22,9.27 L17,14.14 L18.18,21.02 L12,17.77 L5.82,21.02 L7,14.14 L2,9.27 L8.91,8.26 Z"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bdr" Property="Background" Value="#3F3F46"/>
+                                                    <Setter TargetName="starPath" Property="Fill" Value="#FACC15"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -256,38 +344,17 @@
                             </Style>
                         </Button.Style>
                     </Button>
-                    <Button Click="CloseButton_Click" Width="30" Height="30"
-                            Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Close">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="6">
-                                                <Path x:Name="iconPath" Width="10" Height="10" Stretch="Uniform" Stroke="#8E8E93" StrokeThickness="1.8"
-                                                      Data="M1,1 L9,9 M9,1 L1,9"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="bdr" Property="Background" Value="#E81123"/>
-                                                    <Setter TargetName="iconPath" Property="Stroke" Value="#FFFFFF"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
                 </StackPanel>
             </Grid>
-            
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="32,0,30,14" VerticalAlignment="Center">
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="32,0,30,14" VerticalAlignment="Center" MinHeight="34">
                 <TextBlock x:Name="lblStatusDot" Text="●" Foreground="#10B981" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock x:Name="lblStatus" Foreground="#10B981" FontSize="13" FontWeight="SemiBold" Text="Ready"/>
+                <Image x:Name="imgStatusSpinner" Width="34" Height="34" Margin="0,0,7,0" VerticalAlignment="Center"
+                       Visibility="Collapsed" RenderOptions.BitmapScalingMode="HighQuality"/>
+                <TextBlock x:Name="lblStatus" Foreground="#10B981" FontSize="13" FontWeight="SemiBold" Text="Ready" VerticalAlignment="Center"/>
             </StackPanel>
             
-            <Grid x:Name="resultsGrid" Grid.Row="2" Margin="25,0,25,20" Height="350" Visibility="Collapsed">
+            <Grid x:Name="resultsGrid" Grid.Row="3" Margin="25,0,25,20" Height="350" Visibility="Collapsed">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="280"/>
@@ -311,7 +378,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Image Grid.Column="0" Source="{Binding Icon}" Width="20" Height="20" Margin="0,2,8,2" VerticalAlignment="Center"/>
+                                <Image Grid.Column="0" Source="{Binding Icon}" Width="20" Height="20" Margin="0,2,8,2" VerticalAlignment="Center"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock local:HighlightHelper.Text="{Binding DisplayName}"
                                                local:HighlightHelper.SearchText="{Binding Text, ElementName=txtSearch}"
@@ -326,6 +394,8 @@
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
                             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <Setter Property="ContextMenu" Value="{StaticResource FileItemContextMenu}"/>
+                            <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListViewItem">
@@ -348,28 +418,245 @@
                 </ListView>
                 
                 <Border Grid.Column="1" Background="#252526" CornerRadius="10" Margin="15,0,0,0" Padding="20">
-                    <StackPanel x:Name="previewPanel" Visibility="Hidden">
-                        <Image x:Name="picPreviewIcon" Width="64" Height="64" Margin="0,10,0,20" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock x:Name="lblPreviewName" FontSize="18" FontWeight="Bold" TextWrapping="Wrap" Foreground="White" TextAlignment="Center"/>
-                        <TextBlock x:Name="lblPreviewDetails" FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" Margin="0,25,0,25" LineHeight="20"/>
-                        <Button x:Name="btnOpenFile" Content="Open File" Click="btnOpenFile_Click" 
-                                Background="#3F3F46" Foreground="White" BorderThickness="0" Padding="12,8" Margin="0,0,0,12" FontSize="14">
-                            <Button.Resources>
-                                <Style TargetType="Border">
-                                    <Setter Property="CornerRadius" Value="6"/>
-                                </Style>
-                            </Button.Resources>
-                        </Button>
-                        <Button x:Name="btnOpenFolder" Content="Show in Folder" Click="btnOpenFolder_Click" 
-                                Background="#3F3F46" Foreground="White" BorderThickness="0" Padding="12,8" FontSize="14">
-                            <Button.Resources>
-                                <Style TargetType="Border">
-                                    <Setter Property="CornerRadius" Value="6"/>
-                                </Style>
-                            </Button.Resources>
-                        </Button>
-                    </StackPanel>
+                    <Grid x:Name="previewPanel" Visibility="Hidden">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Scrollable as a safety net for very long paths, but everything below is
+                             sized to fit the panel without needing it in the normal case. -->
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Margin="0,0,-14,0" Padding="0,0,14,0">
+                            <StackPanel>
+                                <!-- Small icon top-left + name/type, instead of one big centered icon -->
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="11" Background="#1E1E22"
+                                            BorderBrush="#33FFFFFF" BorderThickness="1" VerticalAlignment="Top" SnapsToDevicePixels="True">
+                                        <Image x:Name="picPreviewIcon" Width="32" Height="32" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" UseLayoutRounding="True"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,1,0,0" VerticalAlignment="Center">
+                                        <TextBlock x:Name="lblPreviewName" FontSize="14" FontWeight="Bold" TextWrapping="Wrap" Foreground="White" LineHeight="17"/>
+                                        <TextBlock x:Name="lblPreviewType" FontSize="10.5" FontWeight="SemiBold" Foreground="#71717A" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Colorful labeled info rows - two-up where it fits so everything
+                                     stays visible together without scrolling in the common case. -->
+                                <Border Background="#1E1E22" CornerRadius="8" Padding="9,6" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <TextBlock Text="LOCATION" FontSize="9.5" FontWeight="Bold" Foreground="#60A5FA"/>
+                                        <TextBlock x:Name="lblInfoLocation" FontSize="12" Foreground="#E4E4E7" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#1E1E22" CornerRadius="8" Padding="9,6">
+                                        <StackPanel>
+                                            <TextBlock Text="SIZE" FontSize="9.5" FontWeight="Bold" Foreground="#34D399"/>
+                                            <TextBlock x:Name="lblInfoSize" FontSize="12" Foreground="#E4E4E7" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Background="#1E1E22" CornerRadius="8" Padding="9,6">
+                                        <StackPanel>
+                                            <TextBlock Text="TYPE" FontSize="9.5" FontWeight="Bold" Foreground="#F472B6"/>
+                                            <TextBlock x:Name="lblInfoTypeBadge" FontSize="12" Foreground="#E4E4E7" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#1E1E22" CornerRadius="8" Padding="9,6">
+                                        <StackPanel>
+                                            <TextBlock Text="MODIFIED" FontSize="9.5" FontWeight="Bold" Foreground="#FBBF24"/>
+                                            <TextBlock x:Name="lblInfoModified" FontSize="12" Foreground="#E4E4E7" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" x:Name="rowCreated" Background="#1E1E22" CornerRadius="8" Padding="9,6">
+                                        <StackPanel>
+                                            <TextBlock Text="CREATED" FontSize="9.5" FontWeight="Bold" Foreground="#A78BFA"/>
+                                            <TextBlock x:Name="lblInfoCreated" FontSize="12" Foreground="#E4E4E7" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Border x:Name="rowContentMatch" Background="#1E1E22" CornerRadius="8" Padding="10,8" Margin="0,0,0,10" Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock Text="CONTENT MATCH" FontSize="10" FontWeight="Bold" Foreground="#FB923C"/>
+                                        <TextBlock x:Name="lblInfoMatch" FontSize="12" FontStyle="Italic" Foreground="#E4E4E7" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Always visible at the bottom, never scrolled out of view -->
+                        <StackPanel Grid.Row="1" Margin="0,12,0,0">
+                            <Button x:Name="btnOpenFile" Content="Open File" Click="btnOpenFile_Click"
+                                    Background="#3F3F46" Foreground="White" BorderThickness="0" Padding="12,8" Margin="0,0,0,12" FontSize="14">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                            <Button x:Name="btnOpenFolder" Content="Show in Folder" Click="btnOpenFolder_Click"
+                                    Background="#3F3F46" Foreground="White" BorderThickness="0" Padding="12,8" FontSize="14">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
                 </Border>
+            </Grid>
+
+            <!-- Favorites view: group tabs + animated "bubble" icon grid. Built/populated
+                 entirely in code-behind (RefreshFavoritesView/RefreshFavoritesGrid) since tabs,
+                 tiles, inline rename, jiggle animation and drag-reorder all need direct control
+                 that isn't a good fit for declarative ItemsControl/DataTemplate binding. -->
+            <Grid x:Name="favoritesView" Grid.Row="3" Margin="25,0,25,20" Height="350" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Auto HorizontalScrollBarVisibility alone (the previous approach) put a
+                         thin scrollbar at the very bottom edge of the tab row - easy to miss
+                         entirely, especially since it can render past where the eye naturally
+                         looks for "there's more here". Explicit chevron buttons, shown only when
+                         there's actually somewhere to scroll (see FavoritesTabScroller_ScrollChanged),
+                         are the same affordance browser tab strips use for this. -->
+                    <Button x:Name="btnTabScrollLeft" Grid.Column="0" Click="BtnTabScrollLeft_Click"
+                            Width="22" Height="26" Margin="0,0,4,0" Background="Transparent" BorderThickness="0"
+                            Cursor="Hand" Visibility="Collapsed" ToolTip="Scroll groups left">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="6">
+                                                <Path Width="7" Height="12" Stretch="Uniform" Fill="#A1A1AA"
+                                                      Data="M8,1 L2,7 L8,13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bdr" Property="Background" Value="#3F3F46"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <ScrollViewer x:Name="favoritesTabScroller" Grid.Column="1" HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled" ScrollChanged="FavoritesTabScroller_ScrollChanged">
+                        <StackPanel x:Name="favoritesTabBar" Orientation="Horizontal"/>
+                    </ScrollViewer>
+
+                    <Button x:Name="btnTabScrollRight" Grid.Column="2" Click="BtnTabScrollRight_Click"
+                            Width="22" Height="26" Margin="4,0,0,0" Background="Transparent" BorderThickness="0"
+                            Cursor="Hand" Visibility="Collapsed" ToolTip="Scroll groups right">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="6">
+                                                <Path Width="7" Height="12" Stretch="Uniform" Fill="#A1A1AA"
+                                                      Data="M2,1 L8,7 L2,13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bdr" Property="Background" Value="#3F3F46"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button x:Name="btnFavoritesDone" Grid.Column="3" Content="Done" Click="BtnFavoritesDone_Click"
+                            Background="#3B82F6" Foreground="White" BorderThickness="0" Padding="14,6" FontSize="12.5" FontWeight="SemiBold"
+                            Cursor="Hand" Margin="10,0,0,0" Visibility="Collapsed">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="6"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <WrapPanel x:Name="favoritesGrid" AllowDrop="True" DragOver="FavoritesGrid_DragOver" Drop="FavoritesGrid_Drop"/>
+                </ScrollViewer>
+
+                <TextBlock x:Name="lblFavoritesEmpty" Grid.Row="1" Text="No favorites in this group yet.&#10;Right-click a search result and choose 'Add to Group'."
+                           Foreground="#71717A" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+
+                <!-- Search-within-favorites results: replaces the bubble grid above (not the tab
+                     row) while the search box has text, so the group tabs stay usable to switch
+                     groups mid-search instead of disappearing along with the grid. -->
+                <ListBox x:Name="favoritesSearchResultsList" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                         Visibility="Collapsed" MouseDoubleClick="FavoritesSearchResultsList_MouseDoubleClick"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="8,7"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#26262A"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Image Source="{Binding Icon}" Width="22" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DisplayName}" Foreground="#F4F4F5" FontSize="13" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding DirectoryName}" Foreground="#71717A" FontSize="11" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </Grid>
         </Grid>
     </Border>

@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using System.Windows;
 
@@ -20,10 +21,16 @@ namespace SonicSearch
             txtDebounce.Text = AppSettings.Instance.DebounceMs.ToString();
             txtReindexMinutes.Text = AppSettings.Instance.AutoReindexMinutes.ToString();
             chkQuickStart.IsChecked = AppSettings.Instance.QuickStartFirstResult;
+            chkStartWithWindows.IsChecked = StartupHelper.IsEnabled();
+            chkUseIndexingService.IsChecked = AppSettings.Instance.UseIndexingService;
+            chkHideAfterOpen.IsChecked = AppSettings.Instance.HideAfterOpen;
             chkRealtimeWatcher.IsChecked = AppSettings.Instance.EnableRealtimeWatcher;
             txtMonitoredFolders.Text = AppSettings.Instance.MonitoredFolders ?? "";
             txtIncludedFolders.Text = AppSettings.Instance.IncludedIndexFolders ?? "";
             txtExcludedFolders.Text = AppSettings.Instance.ExcludedIndexFolders ?? "";
+            txtContentTextExtensions.Text = AppSettings.Instance.ContentSearchTextExtensions ?? "";
+            txtContentBinaryExtensions.Text = AppSettings.Instance.ContentSearchBinaryExtensions ?? "";
+            txtContentIgnoredFolders.Text = AppSettings.Instance.ContentSearchIgnoredFolders ?? "";
 
             string searchMode = AppSettings.Instance.SearchMode ?? "Contains";
             foreach (System.Windows.Controls.ComboBoxItem item in cmbSearchMode.Items)
@@ -132,10 +139,18 @@ namespace SonicSearch
             AppSettings.Instance.PrioritizedExtensions = txtPrioritize.Text;
             AppSettings.Instance.ExcludedExtensions = txtExclude.Text;
             AppSettings.Instance.QuickStartFirstResult = chkQuickStart.IsChecked == true;
+            try { StartupHelper.SetEnabled(chkStartWithWindows.IsChecked == true); } catch { }
+
+            ApplyIndexingServiceToggle();
+
+            AppSettings.Instance.HideAfterOpen = chkHideAfterOpen.IsChecked == true;
             AppSettings.Instance.EnableRealtimeWatcher = chkRealtimeWatcher.IsChecked == true;
             AppSettings.Instance.MonitoredFolders = txtMonitoredFolders.Text.Trim();
             AppSettings.Instance.IncludedIndexFolders = txtIncludedFolders.Text.Trim();
             AppSettings.Instance.ExcludedIndexFolders = txtExcludedFolders.Text.Trim();
+            AppSettings.Instance.ContentSearchTextExtensions = txtContentTextExtensions.Text.Trim();
+            AppSettings.Instance.ContentSearchBinaryExtensions = txtContentBinaryExtensions.Text.Trim();
+            AppSettings.Instance.ContentSearchIgnoredFolders = txtContentIgnoredFolders.Text.Trim();
 
             if (cmbSearchMode.SelectedItem is System.Windows.Controls.ComboBoxItem modeItem)
             {
@@ -157,14 +172,77 @@ namespace SonicSearch
             }
 
             AppSettings.Save();
+            ContentSearcher.ApplySettings();
             this.DialogResult = true;
             this.Close();
+        }
+
+        /// <summary>
+        /// Installs/removes SonicSearchService when the checkbox's state actually changed from
+        /// what's currently saved - the `sc create`/`sc delete` calls are elevated (one UAC
+        /// prompt each way, via ServiceInstallHelper), so this only runs them when needed rather
+        /// than on every Save. Leaves AppSettings.Instance.UseIndexingService unchanged (so the
+        /// checkbox reverts to the actual state next time Settings opens) if the elevated action
+        /// fails or the user declines the UAC prompt.
+        /// </summary>
+        private void ApplyIndexingServiceToggle()
+        {
+            bool wantEnabled = chkUseIndexingService.IsChecked == true;
+            bool currentlyEnabled = AppSettings.Instance.UseIndexingService;
+            if (wantEnabled == currentlyEnabled) return;
+
+            try
+            {
+                if (wantEnabled)
+                {
+                    ServiceInstallHelper.InstallAndStart();
+                    AppSettings.Instance.UseIndexingService = true;
+                    ThemedMessageBox.Show(this,
+                        "The background indexing service is installed and running. Restart SonicSearch for it to take effect - it will no longer need Administrator rights, and drag & drop from Explorer will work.",
+                        "Restart Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    ServiceInstallHelper.StopAndUninstall();
+                    AppSettings.Instance.UseIndexingService = false;
+                    ThemedMessageBox.Show(this,
+                        "The background indexing service has been removed. Restart SonicSearch for it to take effect - it will go back to requiring Administrator rights on launch.",
+                        "Restart Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                chkUseIndexingService.IsChecked = currentlyEnabled;
+                ThemedMessageBox.Show(this,
+                    "Couldn't " + (wantEnabled ? "install" : "remove") + " the background indexing service: " + ex.Message,
+                    "Service Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
             this.DialogResult = false;
             this.Close();
+        }
+
+        private void BtnClearHistory_Click(object sender, RoutedEventArgs e)
+        {
+            int count = AppSettings.Instance.SearchHistory?.Count ?? 0;
+            if (count == 0)
+            {
+                ThemedMessageBox.Show(this, "There's no search history to clear.", "Search History", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (ThemedMessageBox.Show(this,
+                    string.Format("Clear all {0} recent search{1}? This can't be undone.", count, count == 1 ? "" : "es"),
+                    "Clear Search History", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            AppSettings.Instance.SearchHistory.Clear();
+            AppSettings.Save();
         }
     }
 }
