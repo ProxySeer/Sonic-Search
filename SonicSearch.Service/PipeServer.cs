@@ -240,7 +240,7 @@ namespace SonicSearch.Service
 
                         foreach (var change in changes)
                         {
-                            var delta = ResolveDelta(journal, change);
+                            var delta = ResolveDelta(journal, change, driveLetter);
                             if (delta == null) continue;
                             PipeProtocol.WriteJsonFrame(pipe, new PipeFrame { Type = "delta", Delta = delta });
                         }
@@ -289,13 +289,13 @@ namespace SonicSearch.Service
         /// comment. Returns null for a reason that doesn't affect what's shown (matches the
         /// original's early-return for irrelevant Reason flags).
         /// </summary>
-        private static DeltaDto ResolveDelta(UsnJournal journal, UsnChange change)
+        private static DeltaDto ResolveDelta(UsnJournal journal, UsnChange change, string driveLetter)
         {
             uint nodeIndex = (uint)(change.FileReferenceNumber & 0xFFFFFFFF);
 
             bool isRemoval = (change.Reason & (UsnJournal.UsnReason.FileDelete | UsnJournal.UsnReason.RenameOldName)) != 0;
             if (isRemoval)
-                return new DeltaDto { NodeIndex = nodeIndex, IsRemoval = true };
+                return new DeltaDto { NodeIndex = nodeIndex, DriveLetter = driveLetter, IsRemoval = true };
 
             const UsnJournal.UsnReason relevantReasons =
                 UsnJournal.UsnReason.FileCreate | UsnJournal.UsnReason.RenameNewName |
@@ -307,7 +307,7 @@ namespace SonicSearch.Service
 
             string fullName = journal.ResolvePath(change.FileReferenceNumber);
             if (fullName == null)
-                return new DeltaDto { NodeIndex = nodeIndex, IsRemoval = true };
+                return new DeltaDto { NodeIndex = nodeIndex, DriveLetter = driveLetter, IsRemoval = true };
 
             long size = 0;
             DateTime lastWrite = DateTime.Now;
@@ -325,6 +325,7 @@ namespace SonicSearch.Service
             return new DeltaDto
             {
                 NodeIndex = nodeIndex,
+                DriveLetter = driveLetter,
                 FullName = fullName,
                 FileName = Path.GetFileName(fullName),
                 Size = size,

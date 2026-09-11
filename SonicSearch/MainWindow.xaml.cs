@@ -29,7 +29,11 @@ namespace SonicSearch
         private CancellationTokenSource _searchCancellationTokenSource;
         private System.Windows.Threading.DispatcherTimer _debounceTimer;
         
-        private string _currentDrive = "C";
+        /// <summary>The drives actually loaded by the most recent LoadFileSystemData call - kept
+        /// separately from AppSettings.Instance.IndexedDrives (the user's current SELECTION,
+        /// which can change in Settings before a reindex picks it up) so reindex/reconnect paths
+        /// always operate on what's really loaded right now.</summary>
+        private List<string> _currentDrives = new List<string> { "C" };
         
         // FSW
         private List<FileSystemWatcher> _watchers = new List<FileSystemWatcher>();
@@ -43,15 +47,20 @@ namespace SonicSearch
         private bool _isIndexing = false;
 
         // USN Journal incremental indexing
-        private UsnJournal _usnJournal;
-        private long _lastUsn;
+        // One journal + cursor per indexed drive - NodeIndex is only unique WITHIN a single
+        // volume's MFT, so each drive needs its own journal/cursor rather than one shared pair.
+        private readonly Dictionary<string, UsnJournal> _usnJournals = new Dictionary<string, UsnJournal>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> _lastUsnByDrive = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         private System.Windows.Threading.DispatcherTimer _usnPollTimer;
         private readonly object _usnLock = new object();
 
         // Indexing-service mode (AppSettings.Instance.UseIndexingService): the pipe replaces
         // both the direct NtfsReader scan and USN polling above - see LoadFileSystemData and
         // PipeClient.cs.
-        private PipeClient _pipeClient;
+        // One PipeClient per indexed drive - a PipeClient is a single connection tied to one
+        // drive's SNAPSHOT request (see PipeClient.ConnectAndGetSnapshot), so multi-drive service
+        // mode needs one per selected drive rather than a single shared connection.
+        private readonly List<PipeClient> _pipeClients = new List<PipeClient>();
 
         // Favorites view
         private enum ViewMode { Search, Favorites }
@@ -143,11 +152,12 @@ namespace SonicSearch
             _usnPollTimer?.Stop();
             lock (_usnLock)
             {
-                _usnJournal?.Dispose();
-                _usnJournal = null;
+                foreach (var j in _usnJournals.Values) j?.Dispose();
+                _usnJournals.Clear();
+                _lastUsnByDrive.Clear();
             }
-            _pipeClient?.Dispose();
-            _pipeClient = null;
+            foreach (var c in _pipeClients) c?.Dispose();
+            _pipeClients.Clear();
             base.OnClosed(e);
         }
 
@@ -441,10 +451,28 @@ namespace SonicSearch
         {
             // Skip this tick if a search (e.g. a slow content: search) is in flight - the timer
             // fires again next interval, so it's fine to just defer rather than interrupt it.
-            if (!_isIndexing && !_searchInProgress && !string.IsNullOrEmpty(_currentDrive))
+            if (!_isIndexing && !_searchInProgress)
             {
-                LoadFileSystemData(_currentDrive);
+                LoadFileSystemData(GetConfiguredDrives());
             }
+        }
+
+        /// <summary>Reads AppSettings.Instance.IndexedDrives, falling back to just "C" if it's
+        /// empty (e.g. an older settings.json from before this feature existed), and drops any
+        /// drive that's no longer actually present (unplugged external/removable drive) rather
+        /// than letting a stale selection fail the whole reindex.</summary>
+        private static List<string> GetConfiguredDrives()
+        {
+            var configured = AppSettings.Instance.IndexedDrives;
+            if (configured == null || configured.Count == 0)
+                return new List<string> { "C" };
+
+            var present = new HashSet<string>(
+                DriveInfo.GetDrives().Where(d => d.IsReady).Select(d => d.Name.TrimEnd('\\', ':')),
+                StringComparer.OrdinalIgnoreCase);
+
+            var result = configured.Where(d => present.Contains(d)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return result.Count > 0 ? result : new List<string> { "C" };
         }
         
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -467,6 +495,7 @@ namespace SonicSearch
         {
             string oldIncluded = AppSettings.Instance.IncludedIndexFolders ?? "";
             string oldExcluded = AppSettings.Instance.ExcludedIndexFolders ?? "";
+            var oldDrives = new HashSet<string>(GetConfiguredDrives(), StringComparer.OrdinalIgnoreCase);
             var optionsWindow = new OptionsWindow();
             optionsWindow.Owner = this;
             if (optionsWindow.ShowDialog() == true)
@@ -478,15 +507,17 @@ namespace SonicSearch
                     _debounceTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(10, AppSettings.Instance.DebounceMs));
                 }
                 SetupAutoReindexTimer();
-                SetupFileSystemWatcher(_currentDrive);
+                SetupFileSystemWatcher();
 
                 string newIncluded = AppSettings.Instance.IncludedIndexFolders ?? "";
                 string newExcluded = AppSettings.Instance.ExcludedIndexFolders ?? "";
+                var newDrives = new HashSet<string>(GetConfiguredDrives(), StringComparer.OrdinalIgnoreCase);
                 if (!string.Equals(oldIncluded, newIncluded, StringComparison.OrdinalIgnoreCase) ||
-                    !string.Equals(oldExcluded, newExcluded, StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(oldExcluded, newExcluded, StringComparison.OrdinalIgnoreCase) ||
+                    !oldDrives.SetEquals(newDrives))
                 {
-                    // Reload index with new folder filter scope
-                    LoadFileSystemData(_currentDrive);
+                    // Reload index with the new folder filter scope and/or drive selection
+                    LoadFileSystemData(GetConfiguredDrives());
                 }
                 else
                 {
@@ -627,8 +658,8 @@ namespace SonicSearch
 
         private void ManualReindex_Click(object sender, RoutedEventArgs e)
         {
-            if (_isIndexing || string.IsNullOrEmpty(_currentDrive)) return;
-            LoadFileSystemData(_currentDrive);
+            if (_isIndexing) return;
+            LoadFileSystemData(GetConfiguredDrives());
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -651,17 +682,20 @@ namespace SonicSearch
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            LoadFileSystemData("C");
+            LoadFileSystemData(GetConfiguredDrives());
         }
 
-        private async void LoadFileSystemData(string driveLetter)
+        private async void LoadFileSystemData(List<string> driveLetters)
         {
             if (_isIndexing) return;
+            if (driveLetters == null || driveLetters.Count == 0) driveLetters = new List<string> { "C" };
             _isIndexing = true;
-            _currentDrive = driveLetter;
+            _currentDrives = driveLetters;
             SetStatusColor(System.Windows.Media.Color.FromRgb(0x3B, 0x82, 0xF6)); // Blue
             ShowStatusSpinner();
-            lblStatus.Text = $"Indexing {driveLetter}:\\ Master File Table...";
+            lblStatus.Text = driveLetters.Count == 1
+                ? $"Indexing {driveLetters[0]}:\\ Master File Table..."
+                : $"Indexing {string.Join(", ", driveLetters.Select(d => d + ":"))}\\ Master File Tables...";
             if (string.IsNullOrWhiteSpace(txtSearch.Text))
             {
                 listView.ItemsSource = null;
@@ -678,7 +712,7 @@ namespace SonicSearch
                 {
                     try
                     {
-                        fileItems = await LoadViaServiceAsync(driveLetter);
+                        fileItems = await LoadViaServiceAsync(driveLetters);
                     }
                     catch (Exception ex)
                     {
@@ -703,30 +737,56 @@ namespace SonicSearch
                 {
                     fileItems = await Task.Run(() =>
                     {
-                        var drive = new DriveInfo(driveLetter);
-                        var ntfsReader = new NtfsReader(drive, RetrieveMode.StandardInformations);
-                        var nodes = ntfsReader.GetNodes(driveLetter + ":\\");
-
                         var incFolders = GetIncludedFolders();
                         var excFolders = GetExcludedFolders();
+                        var merged = new List<FileItem>();
+                        Exception firstFailure = null;
+                        int failureCount = 0;
 
-                        return nodes.AsParallel().Select(node =>
+                        foreach (var driveLetter in driveLetters)
                         {
-                            string fullName = node.FullName;
-                            if (!IsPathIndexable(fullName, incFolders, excFolders)) return null;
-
-                            return new FileItem
+                            try
                             {
-                                NodeIndex = node.NodeIndex,
-                                FullName = fullName,
-                                FileName = node.Name ?? Path.GetFileName(fullName) ?? fullName,
-                                Size = node.Size > 0 ? (long)node.Size : 0,
-                                LastWriteTime = node.LastChangeTime,
-                                IsDirectory = (node.Attributes & Attributes.Directory) != 0
-                            };
-                        })
-                        .Where(x => x != null)
-                        .ToList();
+                                var drive = new DriveInfo(driveLetter);
+                                var ntfsReader = new NtfsReader(drive, RetrieveMode.StandardInformations);
+                                var nodes = ntfsReader.GetNodes(driveLetter + ":\\");
+
+                                var driveItems = nodes.AsParallel().Select(node =>
+                                {
+                                    string fullName = node.FullName;
+                                    if (!IsPathIndexable(fullName, incFolders, excFolders)) return null;
+
+                                    return new FileItem
+                                    {
+                                        NodeIndex = node.NodeIndex,
+                                        FullName = fullName,
+                                        FileName = node.Name ?? Path.GetFileName(fullName) ?? fullName,
+                                        Size = node.Size > 0 ? (long)node.Size : 0,
+                                        LastWriteTime = node.LastChangeTime,
+                                        IsDirectory = (node.Attributes & Attributes.Directory) != 0
+                                    };
+                                })
+                                .Where(x => x != null)
+                                .ToList();
+
+                                merged.AddRange(driveItems);
+                            }
+                            catch (Exception ex)
+                            {
+                                failureCount++;
+                                if (firstFailure == null) firstFailure = ex;
+                                Trace.WriteLine("Indexing drive " + driveLetter + " failed: " + ex);
+                            }
+                        }
+
+                        // Only a TOTAL failure (every selected drive failed) surfaces as the
+                        // blocking admin/IO error dialog below - one bad drive (not NTFS, access
+                        // denied, unplugged mid-scan) shouldn't throw away good results from the
+                        // drives that DID succeed, just get logged and skipped.
+                        if (merged.Count == 0 && failureCount == driveLetters.Count && firstFailure != null)
+                            throw firstFailure;
+
+                        return merged;
                     });
                 }
 
@@ -739,13 +799,13 @@ namespace SonicSearch
                 if (useService)
                     StartServiceDeltaSubscription();
                 else
-                    StartUsnJournalPolling(driveLetter);
+                    StartUsnJournalPolling(driveLetters);
 
                 stopwatch.Stop();
                 double elapsedSec = stopwatch.Elapsed.TotalSeconds;
                 _readyStatusText = $"Ready — Indexed {_allItems.Count:N0} files in {elapsedSec:F2}s";
 
-                SetupFileSystemWatcher(driveLetter);
+                SetupFileSystemWatcher();
 
                 if (string.IsNullOrWhiteSpace(txtSearch.Text))
                 {
@@ -781,7 +841,7 @@ namespace SonicSearch
                 SetStatusColor(System.Windows.Media.Color.FromRgb(0xEF, 0x44, 0x44)); // Red
                     HideStatusSpinner();
                 lblStatus.Text = "Indexing failed: " + ex.Message;
-                Trace.WriteLine("LoadFileSystemData failed for drive " + driveLetter + ": " + ex);
+                Trace.WriteLine("LoadFileSystemData failed for drive(s) " + string.Join(",", driveLetters) + ": " + ex);
             }
             finally
             {
@@ -805,6 +865,18 @@ namespace SonicSearch
                 .Select(s => s.Trim().TrimEnd('\\'))
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToList();
+        }
+
+        /// <summary>NodeIndex is only unique WITHIN one volume's MFT - indexing more than one
+        /// drive at once means a USN/delta change has to also be checked against the drive it
+        /// came from before matching it to an existing FileItem by NodeIndex alone, or a rename
+        /// on D: could silently update an unrelated file that happens to share the same
+        /// NodeIndex on C:. driveLetter may be a bare letter ("C") or an item's own FullName - only
+        /// the first character is ever compared.</summary>
+        private static bool SameDrive(FileItem fi, string driveLetter)
+        {
+            if (string.IsNullOrEmpty(driveLetter) || string.IsNullOrEmpty(fi.FullName)) return true;
+            return char.ToUpperInvariant(fi.FullName[0]) == char.ToUpperInvariant(driveLetter[0]);
         }
 
         /// <summary>
@@ -852,34 +924,61 @@ namespace SonicSearch
         /// WPF icon). The connection itself happens on a background thread since Connect() and
         /// the initial frame read both block.
         /// </summary>
-        private Task<List<FileItem>> LoadViaServiceAsync(string driveLetter)
+        private Task<List<FileItem>> LoadViaServiceAsync(List<string> driveLetters)
         {
             return Task.Run(() =>
             {
-                _pipeClient?.Dispose();
-                var client = new PipeClient();
-                var items = client.ConnectAndGetSnapshot(driveLetter);
-                _pipeClient = client;
+                foreach (var old in _pipeClients) old?.Dispose();
+                _pipeClients.Clear();
 
                 var incFolders = GetIncludedFolders();
                 var excFolders = GetExcludedFolders();
+                var merged = new List<FileItem>();
+                Exception firstFailure = null;
 
-                // AsParallel here too - matches the direct path (see the other branch above) and
-                // the service's own parallel scan (PipeServer.ScanDrive); this filter+convert step
-                // is otherwise-identical per-item work run ~1M times, same as there.
-                return items
-                    .AsParallel()
-                    .Where(dto => IsPathIndexable(dto.FullName, incFolders, excFolders))
-                    .Select(dto => new FileItem
+                // One connection per drive - PipeClient.ConnectAndGetSnapshot ties one connection
+                // to one SNAPSHOT request, so N drives means N connections (kept open afterward
+                // for delta subscription - see StartServiceDeltaSubscription).
+                foreach (var driveLetter in driveLetters)
+                {
+                    try
                     {
-                        NodeIndex = dto.NodeIndex,
-                        FullName = dto.FullName,
-                        FileName = dto.FileName,
-                        Size = dto.Size,
-                        LastWriteTime = dto.LastWriteTime,
-                        IsDirectory = dto.IsDirectory
-                    })
-                    .ToList();
+                        var client = new PipeClient();
+                        var items = client.ConnectAndGetSnapshot(driveLetter);
+                        _pipeClients.Add(client);
+
+                        // AsParallel here too - matches the direct path (see the other branch
+                        // above) and the service's own parallel scan (PipeServer.ScanDrive); this
+                        // filter+convert step is otherwise-identical per-item work run ~1M times.
+                        var converted = items
+                            .AsParallel()
+                            .Where(dto => IsPathIndexable(dto.FullName, incFolders, excFolders))
+                            .Select(dto => new FileItem
+                            {
+                                NodeIndex = dto.NodeIndex,
+                                FullName = dto.FullName,
+                                FileName = dto.FileName,
+                                Size = dto.Size,
+                                LastWriteTime = dto.LastWriteTime,
+                                IsDirectory = dto.IsDirectory
+                            })
+                            .ToList();
+
+                        merged.AddRange(converted);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (firstFailure == null) firstFailure = ex;
+                        Trace.WriteLine("Service connection for drive " + driveLetter + " failed: " + ex);
+                    }
+                }
+
+                // Same partial-failure tolerance as the direct path: only throw (surfacing the
+                // "service isn't responding" message) if every drive's connection failed.
+                if (_pipeClients.Count == 0 && firstFailure != null)
+                    throw firstFailure;
+
+                return merged;
             });
         }
 
@@ -892,52 +991,60 @@ namespace SonicSearch
         /// </summary>
         private void StartServiceDeltaSubscription()
         {
-            var client = _pipeClient;
-            if (client == null) return;
-
-            client.DeltaReceived += delta =>
+            // One subscription per drive's connection - a drive's own delta stream only ever
+            // reports changes for that drive (see PipeServer's per-connection journal), so this
+            // just wires up the same handler on each of them.
+            foreach (var client in _pipeClients.ToList())
             {
-                var incFolders = GetIncludedFolders();
-                var excFolders = GetExcludedFolders();
-                bool changed;
-                lock (_allItemsLock)
+                client.DeltaReceived += delta =>
                 {
-                    changed = ApplyServiceDelta(delta, incFolders, excFolders);
-                    if (changed) _cachedSnapshot = _allItems.ToArray();
-                }
-
-                if (!changed) return;
-
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    if (string.IsNullOrWhiteSpace(txtSearch.Text))
+                    var incFolders = GetIncludedFolders();
+                    var excFolders = GetExcludedFolders();
+                    bool changed;
+                    lock (_allItemsLock)
                     {
-                        _readyStatusText = string.Format("Ready — Indexed {0:N0} files", _allItems.Count);
-                        HideStatusSpinner();
-                        lblStatus.Text = _readyStatusText;
+                        changed = ApplyServiceDelta(delta, incFolders, excFolders);
+                        if (changed) _cachedSnapshot = _allItems.ToArray();
                     }
-                    else if (!_searchInProgress)
-                    {
-                        TriggerSearch();
-                    }
-                }));
-            };
 
-            client.Disconnected += () =>
-            {
-                Dispatcher.BeginInvoke(new Action(async () =>
+                    if (!changed) return;
+
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (string.IsNullOrWhiteSpace(txtSearch.Text))
+                        {
+                            _readyStatusText = string.Format("Ready — Indexed {0:N0} files", _allItems.Count);
+                            HideStatusSpinner();
+                            lblStatus.Text = _readyStatusText;
+                        }
+                        else if (!_searchInProgress)
+                        {
+                            TriggerSearch();
+                        }
+                    }));
+                };
+
+                client.Disconnected += () =>
                 {
-                    // A full reindex is the only recovery from a dropped service connection, but
-                    // reconnecting instantly every time risks a tight reconnect/reindex loop if
-                    // whatever caused the drop keeps recurring (PipeServer.cs has its own retry
-                    // logic for transient errors now, but this is a second line of defense) -
-                    // a short delay costs nothing on the ordinary "service briefly restarted"
-                    // case and turns a potential runaway loop into, at worst, a slow retry cycle.
-                    Trace.WriteLine("Indexing service disconnected; reconnecting shortly.");
-                    await Task.Delay(2000);
-                    LoadFileSystemData(_currentDrive);
-                }));
-            };
+                    Dispatcher.BeginInvoke(new Action(async () =>
+                    {
+                        // A full reindex (of every selected drive, not just the one that dropped -
+                        // simpler and matches the direct path's "any journal invalidated -> full
+                        // rescan" recovery) is the only recovery from a dropped service connection,
+                        // but reconnecting instantly every time risks a tight reconnect/reindex
+                        // loop if whatever caused the drop keeps recurring (PipeServer.cs has its
+                        // own retry logic for transient errors now, but this is a second line of
+                        // defense) - a short delay costs nothing on the ordinary "service briefly
+                        // restarted" case and turns a potential runaway loop into, at worst, a slow
+                        // retry cycle. LoadFileSystemData's own _isIndexing guard means it's safe
+                        // for more than one drive's connection to drop around the same time and
+                        // each independently schedule this - only the first actually reindexes.
+                        Trace.WriteLine("Indexing service disconnected; reconnecting shortly.");
+                        await Task.Delay(2000);
+                        LoadFileSystemData(_currentDrives);
+                    }));
+                };
+            }
         }
 
         /// <summary>Applies one DeltaDto to _allItems in place. Must be called with
@@ -946,12 +1053,12 @@ namespace SonicSearch
         private bool ApplyServiceDelta(SonicSearch.Contracts.DeltaDto delta, List<string> incFolders, List<string> excFolders)
         {
             if (delta.IsRemoval)
-                return _allItems.RemoveAll(fi => fi.NodeIndex == delta.NodeIndex) > 0;
+                return _allItems.RemoveAll(fi => fi.NodeIndex == delta.NodeIndex && SameDrive(fi, delta.DriveLetter)) > 0;
 
             if (!IsPathIndexable(delta.FullName, incFolders, excFolders))
-                return _allItems.RemoveAll(fi => fi.NodeIndex == delta.NodeIndex) > 0;
+                return _allItems.RemoveAll(fi => fi.NodeIndex == delta.NodeIndex && SameDrive(fi, delta.DriveLetter)) > 0;
 
-            var existingIndex = _allItems.FindIndex(fi => fi.NodeIndex == delta.NodeIndex);
+            var existingIndex = _allItems.FindIndex(fi => fi.NodeIndex == delta.NodeIndex && SameDrive(fi, delta.DriveLetter));
             if (existingIndex >= 0)
             {
                 var item = _allItems[existingIndex];
@@ -980,26 +1087,32 @@ namespace SonicSearch
         /// without a full MFT rescan. Falls back to a full rescan automatically if the
         /// journal is unavailable or gets invalidated (wrapped/recreated) while polling.
         /// </summary>
-        private void StartUsnJournalPolling(string driveLetter)
+        private void StartUsnJournalPolling(List<string> driveLetters)
         {
             lock (_usnLock)
             {
-                _usnJournal?.Dispose();
-                _usnJournal = null;
+                foreach (var j in _usnJournals.Values) j?.Dispose();
+                _usnJournals.Clear();
+                _lastUsnByDrive.Clear();
 
-                try
+                foreach (var driveLetter in driveLetters)
                 {
-                    var journal = new UsnJournal(new DriveInfo(driveLetter));
-                    _lastUsn = journal.CurrentUsn;
-                    _usnJournal = journal;
+                    try
+                    {
+                        var journal = new UsnJournal(new DriveInfo(driveLetter));
+                        _lastUsnByDrive[driveLetter] = journal.CurrentUsn;
+                        _usnJournals[driveLetter] = journal;
+                    }
+                    catch (Exception ex)
+                    {
+                        // USN journal isn't available (e.g. non-NTFS volume, or access denied for
+                        // the journal specifically) - the app still works via full rescans/FSW for
+                        // this one drive, while the others keep live-syncing normally.
+                        Trace.WriteLine("USN journal unavailable for drive " + driveLetter + ": " + ex.Message);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    // USN journal isn't available (e.g. non-NTFS volume, or access denied for
-                    // the journal specifically) - the app still works via full rescans/FSW.
-                    Trace.WriteLine("USN journal unavailable for drive " + driveLetter + ": " + ex.Message);
-                    return;
-                }
+
+                if (_usnJournals.Count == 0) return;
             }
 
             if (_usnPollTimer == null)
@@ -1033,19 +1146,25 @@ namespace SonicSearch
             if (!AppSettings.Instance.EnableRealtimeWatcher) return;
             if (_isIndexing || _searchInProgress || _usnPollRunning) return;
 
-            UsnJournal journal;
+            Dictionary<string, UsnJournal> journals;
             lock (_usnLock)
             {
-                journal = _usnJournal;
+                journals = new Dictionary<string, UsnJournal>(_usnJournals, StringComparer.OrdinalIgnoreCase);
             }
-            if (journal == null) return;
+            if (journals.Count == 0) return;
 
             _usnPollRunning = true;
             Task.Run(() =>
             {
                 try
                 {
-                    PollUsnJournalBackground(journal);
+                    // Sequential across drives on this one background thread - each drive's own
+                    // GetChanges/ResolvePath calls are already what makes a SINGLE drive's poll
+                    // "blocking work", so running N drives one after another here just extends
+                    // the batch a bit rather than adding real parallelism complexity for what's
+                    // still a periodic background tick, not something latency-sensitive.
+                    foreach (var kvp in journals)
+                        PollUsnJournalBackground(kvp.Key, kvp.Value);
                 }
                 finally
                 {
@@ -1054,25 +1173,28 @@ namespace SonicSearch
             });
         }
 
-        private void PollUsnJournalBackground(UsnJournal journal)
+        private void PollUsnJournalBackground(string driveLetter, UsnJournal journal)
         {
+            long lastUsn = _lastUsnByDrive.TryGetValue(driveLetter, out var l) ? l : 0;
+
             List<UsnChange> changes;
             try
             {
-                changes = journal.GetChanges(_lastUsn);
+                changes = journal.GetChanges(lastUsn);
             }
             catch (UsnJournalInvalidatedException)
             {
-                // Journal wrapped or was recreated since our cursor was captured - the only
-                // safe recovery is a full re-scan, after which polling resumes from the
-                // journal's new current position.
-                Trace.WriteLine("USN journal invalidated for drive " + _currentDrive + "; falling back to full rescan.");
-                Dispatcher.BeginInvoke(new Action(() => LoadFileSystemData(_currentDrive)));
+                // Journal wrapped or was recreated since our cursor was captured - the only safe
+                // recovery is a full re-scan (of every selected drive, not just this one - simpler
+                // than reloading a single drive mid-multi-drive-index, and LoadFileSystemData's
+                // _isIndexing guard means this is harmless even if it fires more than once).
+                Trace.WriteLine("USN journal invalidated for drive " + driveLetter + "; falling back to full rescan.");
+                Dispatcher.BeginInvoke(new Action(() => LoadFileSystemData(_currentDrives)));
                 return;
             }
             catch (Exception ex)
             {
-                Trace.WriteLine("USN journal poll failed: " + ex);
+                Trace.WriteLine("USN journal poll failed for drive " + driveLetter + ": " + ex);
                 return;
             }
 
@@ -1087,7 +1209,7 @@ namespace SonicSearch
                 lock (_allItemsLock)
                 {
                     foreach (var change in changes)
-                        changed |= ApplyUsnChange(journal, change, incFolders, excFolders);
+                        changed |= ApplyUsnChange(driveLetter, journal, change, incFolders, excFolders);
 
                     if (changed)
                         _cachedSnapshot = _allItems.ToArray();
@@ -1102,7 +1224,7 @@ namespace SonicSearch
                 return;
             }
 
-            _lastUsn = changes[changes.Count - 1].Usn + 1;
+            _lastUsnByDrive[driveLetter] = changes[changes.Count - 1].Usn + 1;
 
             if (!changed) return;
 
@@ -1128,7 +1250,7 @@ namespace SonicSearch
         /// Applies one USN change record to <see cref="_allItems"/> in place. Must be called
         /// with <see cref="_allItemsLock"/> held. Returns true if the in-memory index changed.
         /// </summary>
-        private bool ApplyUsnChange(UsnJournal journal, UsnChange change, List<string> incFolders, List<string> excFolders)
+        private bool ApplyUsnChange(string driveLetter, UsnJournal journal, UsnChange change, List<string> incFolders, List<string> excFolders)
         {
             uint nodeIndex = (uint)(change.FileReferenceNumber & 0xFFFFFFFF);
 
@@ -1137,7 +1259,7 @@ namespace SonicSearch
 
             if (isRemoval)
             {
-                return _allItems.RemoveAll(fi => fi.NodeIndex == nodeIndex) > 0;
+                return _allItems.RemoveAll(fi => fi.NodeIndex == nodeIndex && SameDrive(fi, driveLetter)) > 0;
             }
 
             // Only bother resolving the path for reasons that can actually affect what we show.
@@ -1150,7 +1272,7 @@ namespace SonicSearch
                 return false;
 
             string fullName = journal.ResolvePath(change.FileReferenceNumber);
-            var existingIndex = _allItems.FindIndex(fi => fi.NodeIndex == nodeIndex);
+            var existingIndex = _allItems.FindIndex(fi => fi.NodeIndex == nodeIndex && SameDrive(fi, driveLetter));
 
             if (fullName == null || !IsPathIndexable(fullName, incFolders, excFolders))
             {
@@ -1199,7 +1321,10 @@ namespace SonicSearch
             return true;
         }
 
-        private void SetupFileSystemWatcher(string driveLetter)
+        // No longer takes a driveLetter - it only ever watches fixed special folders (Desktop,
+        // Documents, Downloads, custom monitored folders) that don't depend on which drive(s) are
+        // indexed, so the parameter was unused.
+        private void SetupFileSystemWatcher()
         {
             // Dispose existing watchers
             if (_watchers != null)
@@ -1669,6 +1794,28 @@ namespace SonicSearch
 
                 AddHistoricalFilterSuggestions(suggestions, full, caret, filterPrefix, sub, 3);
             }
+            // Case 4.5: user typed "drive:" - suggest the letters actually enabled in Settings
+            else if (currentWord.StartsWith("drive:", StringComparison.OrdinalIgnoreCase))
+            {
+                int colon = currentWord.IndexOf(':');
+                string filterPrefix = currentWord.Substring(0, colon + 1);
+                string sub = currentWord.Substring(colon + 1).ToLowerInvariant();
+
+                foreach (var letter in GetConfiguredDrives())
+                {
+                    string opt = filterPrefix + letter.ToLowerInvariant();
+                    if (string.IsNullOrEmpty(sub) || opt.IndexOf(sub, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        suggestions.Add(new SuggestionItem
+                        {
+                            Title = opt,
+                            Description = "Search only on " + letter.ToUpperInvariant() + ":",
+                            CompletionText = ReplaceCurrentWord(full, caret, opt),
+                            IconKind = "Filter"
+                        });
+                    }
+                }
+            }
             // Case 5: user is typing prefixes like "e", "s", "d", "m", "l", "p"
             else if (currentWord.Length > 0 && !currentWord.Contains(":"))
             {
@@ -1681,7 +1828,8 @@ namespace SonicSearch
                     Tuple.Create("ext:", "Filter by file extension (e.g. ext:pdf, ext:exe)", "Filter"),
                     Tuple.Create("type:", "Filter by type (e.g. type:folder, type:file, type:pdf)", "Filter"),
                     Tuple.Create("size:", "Filter by file size (e.g. size:>10mb, size:<1gb)", "Filter"),
-                    Tuple.Create("date:", "Filter by modification date (e.g. date:today, date:>7d)", "Filter")
+                    Tuple.Create("date:", "Filter by modification date (e.g. date:today, date:>7d)", "Filter"),
+                    Tuple.Create("drive:", "Restrict to one indexed drive (e.g. drive:d)", "Filter")
                 };
 
                 foreach (var hint in filterHints)
@@ -1692,7 +1840,14 @@ namespace SonicSearch
                         {
                             Title = hint.Item1,
                             Description = hint.Item2,
-                            CompletionText = ReplaceCurrentWord(full, caret, hint.Item1),
+                            // No trailing space: hint.Item1 is a bare qualifier ("drive:",
+                            // "location:", ...) still awaiting its value, which should stay
+                            // smushed onto the same word (so typing right after it continues
+                            // triggering that qualifier's OWN value autocomplete, e.g. Case 4.5
+                            // for drive:) - a trailing space here would silently start a brand
+                            // new word instead, falling through to this same generic hint list
+                            // again for whatever gets typed next.
+                            CompletionText = ReplaceCurrentWord(full, caret, hint.Item1, addTrailingSpace: false),
                             IconKind = hint.Item3
                         });
 
@@ -1735,15 +1890,20 @@ namespace SonicSearch
 
         private static string ReplaceCurrentWord(string full, int caret, string replacement)
         {
+            return ReplaceCurrentWord(full, caret, replacement, addTrailingSpace: true);
+        }
+
+        private static string ReplaceCurrentWord(string full, int caret, string replacement, bool addTrailingSpace)
+        {
             if (caret < 0 || caret > full.Length) caret = full.Length;
             string before = full.Substring(0, caret);
             string after = full.Substring(caret);
 
             int lastSpace = before.LastIndexOf(' ');
             string newBefore = (lastSpace >= 0 ? before.Substring(0, lastSpace + 1) : "") + replacement;
-            
+
             // Add trailing space for convenience if not already there
-            if (!after.StartsWith(" "))
+            if (addTrailingSpace && !after.StartsWith(" "))
                 newBefore += " ";
 
             return newBefore + after;
@@ -2256,6 +2416,7 @@ namespace SonicSearch
             // Allow both "ext:exe" and "ext: exe" with optional spaces
             var extFilters = new List<string>();
             bool? folderFilter = null; // true = folders only, false = files only
+            char? driveFilter = null; // restricts matches to this drive letter, e.g. "drive:d"
             List<string> locationFilters = null;
             string contentQuery = null;
             long? minSize = null;
@@ -2406,6 +2567,18 @@ namespace SonicSearch
                     string val = tok.Substring(colon + 1).Trim().Trim('\"', '\'');
                     if (!string.IsNullOrEmpty(val)) contentQuery = val;
                 }
+                else if (tok.Equals("drive:", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrEmpty(nextTok))
+                    {
+                        driveFilter = ParseDriveFilter(nextTok);
+                        t++; // Consume next token
+                    }
+                }
+                else if (tok.StartsWith("drive:", StringComparison.OrdinalIgnoreCase) && tok.Length > "drive:".Length)
+                {
+                    driveFilter = ParseDriveFilter(tok.Substring("drive:".Length));
+                }
                 else if (tok.Equals("location:", StringComparison.OrdinalIgnoreCase) || tok.Equals("path:", StringComparison.OrdinalIgnoreCase) || tok.Equals("in:", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!string.IsNullOrEmpty(nextTok))
@@ -2453,6 +2626,12 @@ namespace SonicSearch
             {
                 // 0. Folder / File type filter
                 if (folderFilter.HasValue && item.IsDirectory != folderFilter.Value)
+                    return false;
+
+                // 0.05 Drive filter - restricts matches to one of the (possibly several)
+                // currently-indexed drives, e.g. "drive:d photos".
+                if (driveFilter.HasValue &&
+                    (string.IsNullOrEmpty(item.FullName) || char.ToUpperInvariant(item.FullName[0]) != driveFilter.Value))
                     return false;
 
                 // 0.1 Location / Path filter - matches if the item's path contains ANY of the
@@ -2894,10 +3073,10 @@ namespace SonicSearch
 
                     // Surface matching Windows tools (Device Manager, Control Panel, ...) above
                     // regular file results, the same way a launcher would - but only for a plain
-                    // name search; a tool isn't a meaningful match for size:/date:/ext:/location:
-                    // filters, content search, or a folder/file-only restriction.
+                    // name search; a tool isn't a meaningful match for size:/date:/ext:/location:/
+                    // drive: filters, content search, or a folder/file-only restriction.
                     if (string.IsNullOrEmpty(contentQuery) && !string.IsNullOrEmpty(primaryQuery) &&
-                        folderFilter == null && extFilters.Count == 0 &&
+                        folderFilter == null && extFilters.Count == 0 && driveFilter == null &&
                         !minSize.HasValue && !maxSize.HasValue && !minDate.HasValue && !maxDate.HasValue &&
                         (locationFilters == null || locationFilters.Count == 0))
                     {
@@ -3052,6 +3231,17 @@ namespace SonicSearch
                     }
                 } catch { }
             }, pToken);
+        }
+
+        /// <summary>Parses "drive:d", "drive:d:", or "drive:D:\" alike into just the drive
+        /// letter - accepts the trailing colon/slash a user would naturally type since a bare
+        /// letter alone ("d") is the one form that's actually required.</summary>
+        private static char? ParseDriveFilter(string val)
+        {
+            val = (val ?? "").Trim().Trim('\"', '\'');
+            if (val.Length == 0) return null;
+            char c = char.ToUpperInvariant(val[0]);
+            return (c >= 'A' && c <= 'Z') ? (char?)c : null;
         }
 
         private static void ParseSizeFilter(string val, ref long? minSize, ref long? maxSize)

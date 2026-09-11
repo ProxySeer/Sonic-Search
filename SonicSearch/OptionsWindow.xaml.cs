@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Navigation;
@@ -8,6 +10,46 @@ namespace SonicSearch
 {
     public partial class OptionsWindow : Window
     {
+        private readonly System.Collections.Generic.List<System.Windows.Controls.CheckBox> _driveCheckBoxes = new System.Collections.Generic.List<System.Windows.Controls.CheckBox>();
+
+        /// <summary>Builds one checkbox per ready NTFS drive on the machine - other formats
+        /// (FAT32/exFAT USB drives, etc.) aren't offered since NtfsReader/the USN journal only
+        /// work on NTFS, so they'd just fail to index if selected.</summary>
+        private void PopulateDriveCheckboxes()
+        {
+            var selected = new System.Collections.Generic.HashSet<string>(
+                AppSettings.Instance.IndexedDrives ?? new System.Collections.Generic.List<string> { "C" },
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                if (!drive.IsReady) continue;
+                if (drive.DriveType != DriveType.Fixed && drive.DriveType != DriveType.Removable) continue;
+                if (!string.Equals(drive.DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase)) continue;
+
+                string letter = drive.Name.TrimEnd('\\', ':');
+                var cb = new System.Windows.Controls.CheckBox
+                {
+                    Content = letter + ":  (" + FormatFreeSpace(drive) + " free)",
+                    Tag = letter,
+                    IsChecked = selected.Contains(letter),
+                    Margin = new Thickness(0, 0, 18, 6)
+                };
+                _driveCheckBoxes.Add(cb);
+                panelDrives.Children.Add(cb);
+            }
+        }
+
+        private static string FormatFreeSpace(DriveInfo drive)
+        {
+            try
+            {
+                double gb = drive.AvailableFreeSpace / 1024.0 / 1024.0 / 1024.0;
+                return gb.ToString("F0") + " GB";
+            }
+            catch { return "?"; }
+        }
+
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
             // A Hyperlink doesn't open anything on its own by default - has to be launched
@@ -42,6 +84,7 @@ namespace SonicSearch
             txtContentTextExtensions.Text = AppSettings.Instance.ContentSearchTextExtensions ?? "";
             txtContentBinaryExtensions.Text = AppSettings.Instance.ContentSearchBinaryExtensions ?? "";
             txtContentIgnoredFolders.Text = AppSettings.Instance.ContentSearchIgnoredFolders ?? "";
+            PopulateDriveCheckboxes();
 
             string searchMode = AppSettings.Instance.SearchMode ?? "Contains";
             foreach (System.Windows.Controls.ComboBoxItem item in cmbSearchMode.Items)
@@ -143,6 +186,14 @@ namespace SonicSearch
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
+            var selectedDrives = _driveCheckBoxes.Where(cb => cb.IsChecked == true).Select(cb => (string)cb.Tag).ToList();
+            if (selectedDrives.Count == 0)
+            {
+                ThemedMessageBox.Show(this, "At least one drive must be selected to index.", "No Drives Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            AppSettings.Instance.IndexedDrives = selectedDrives;
+
             if (int.TryParse(txtMaxResults.Text, out int max) && max > 0) AppSettings.Instance.MaxResults = max;
             if (int.TryParse(txtDebounce.Text, out int debounce) && debounce >= 0) AppSettings.Instance.DebounceMs = debounce;
             if (int.TryParse(txtReindexMinutes.Text, out int reindex) && reindex >= 0) AppSettings.Instance.AutoReindexMinutes = reindex;

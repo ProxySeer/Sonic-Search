@@ -26,6 +26,11 @@ namespace SonicSearch
         /// a service (one elevated action, done from Settings), so it's strictly opt-in.</summary>
         public bool UseIndexingService { get; set; } = false;
 
+        /// <summary>Drive letters (e.g. "C", "D") to index and search across, in addition to C.
+        /// Null/empty means just C - see MainWindow.GetConfiguredDrives, which is the only place
+        /// this is actually read from.</summary>
+        public System.Collections.Generic.List<string> IndexedDrives { get; set; } = new System.Collections.Generic.List<string> { "C" };
+
         // Content-search (content:) tuning - previously hardcoded HashSets in ContentSearcher.cs.
         // Empty string means "use ContentSearcher's built-in defaults"; ContentSearcher.ApplySettings
         // falls back to those whenever the corresponding setting here is blank, so an existing

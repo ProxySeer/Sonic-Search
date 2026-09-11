@@ -276,6 +276,18 @@
             <TabItem Header="General">
             <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,-8,0" Padding="0,0,10,0">
                 <StackPanel>
+                    <TextBlock Text="Drives to Index:" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <Border Background="#212124" CornerRadius="8" Padding="14,12" Margin="0,0,0,14">
+                        <StackPanel>
+                            <!-- Populated in code-behind (OptionsWindow.xaml.cs) with one checkbox
+                                 per ready NTFS drive found on this machine, since the actual list
+                                 of drives is only known at runtime. -->
+                            <WrapPanel x:Name="panelDrives"/>
+                            <TextBlock Text="Changing this reindexes from scratch on Save. At least one drive must stay selected."
+                                       Foreground="#71717A" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Text="Global Toggle Hotkey:" Foreground="#A1A1AA" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5"/>
                     <Grid Margin="0,0,0,14">
                         <Grid.ColumnDefinitions>
@@ -591,6 +603,17 @@
                                 </StackPanel>
                                 <TextBlock Text="location:desktop   path:downloads   in:C:\Projects" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
                                 <TextBlock Text="Aliases: desktop, downloads, documents, pictures, music, videos, temp, user, system, programfiles - or any custom path." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource FilterCommandRow}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource FilterCommandBadge}"><TextBlock Text="drive:" Foreground="#FACC15" FontSize="11" FontWeight="Bold"/></Border>
+                                    <TextBlock Text="Restrict to one drive" Foreground="#E4E4E7" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="drive:d   drive:c report" Foreground="#818CF8" FontFamily="Consolas" FontSize="12" Margin="0,6,0,2"/>
+                                <TextBlock Text="Only matches drives currently enabled in Settings > General > Drives to Index." Foreground="#71717A" FontSize="11" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
