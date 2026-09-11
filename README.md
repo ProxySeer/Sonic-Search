@@ -58,4 +58,7 @@ Sonic Search's own code (`SonicSearch`, `SonicSearch.Service`, `SonicSearch.Cont
 
 ## Screenshots
 
-_Coming soon — the UI has since been rebuilt from the ground up (WinForms → WPF, dark theme). The old screenshots in `screenshots/` are from a previous version and no longer reflect the current app._
+| | |
+|---|---|
+| ![Main search](screenshots/main-search.png) | ![Favorites](screenshots/favorites.png) |
+| ![Indexed 1,049,938 files in 5.43s](screenshots/indexed-ready.png) | ![Settings](screenshots/settings.png) |

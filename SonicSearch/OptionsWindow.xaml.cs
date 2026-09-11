@@ -1,11 +1,22 @@
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Navigation;
 
 namespace SonicSearch
 {
     public partial class OptionsWindow : Window
     {
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            // A Hyperlink doesn't open anything on its own by default - has to be launched
+            // through the shell explicitly, same as any other external URL in this app.
+            try { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
+            catch { }
+            e.Handled = true;
+        }
+
         public OptionsWindow()
         {
             InitializeComponent();
