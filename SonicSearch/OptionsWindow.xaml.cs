@@ -77,6 +77,7 @@ namespace SonicSearch
             chkStartWithWindows.IsChecked = StartupHelper.IsEnabled();
             chkUseIndexingService.IsChecked = AppSettings.Instance.UseIndexingService;
             chkHideAfterOpen.IsChecked = AppSettings.Instance.HideAfterOpen;
+            chkAlwaysOnTop.IsChecked = AppSettings.Instance.AlwaysOnTop;
             chkRealtimeWatcher.IsChecked = AppSettings.Instance.EnableRealtimeWatcher;
             txtMonitoredFolders.Text = AppSettings.Instance.MonitoredFolders ?? "";
             txtIncludedFolders.Text = AppSettings.Instance.IncludedIndexFolders ?? "";
@@ -206,6 +207,7 @@ namespace SonicSearch
             ApplyIndexingServiceToggle();
 
             AppSettings.Instance.HideAfterOpen = chkHideAfterOpen.IsChecked == true;
+            AppSettings.Instance.AlwaysOnTop = chkAlwaysOnTop.IsChecked == true;
             AppSettings.Instance.EnableRealtimeWatcher = chkRealtimeWatcher.IsChecked == true;
             AppSettings.Instance.MonitoredFolders = txtMonitoredFolders.Text.Trim();
             AppSettings.Instance.IncludedIndexFolders = txtIncludedFolders.Text.Trim();

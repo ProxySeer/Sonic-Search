@@ -18,6 +18,10 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+    <!-- WinRT interop (Windows.Management.Deployment.PackageManager) - used by
+         WindowsAppHelper.cs to resolve a packaged/Store app's stable AppUserModelId instead of
+         its versioned WindowsApps install path, which changes on every app update. -->
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.1" />
   </ItemGroup>
 
   <ItemGroup>

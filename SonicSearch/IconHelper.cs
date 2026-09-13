@@ -386,6 +386,7 @@ public static class IconHelper
     public static ImageSource GetSmallIconForPath(string path)
     {
         if (string.IsNullOrEmpty(path)) return null;
+        path = ResolveIfStaleWindowsAppsPath(path);
 
         // See NeedsStaIconHandler.
         if (NeedsStaIconHandler(Path.GetExtension(path)?.ToLowerInvariant() ?? ""))
@@ -481,9 +482,26 @@ public static class IconHelper
     [DllImport("shell32.dll", EntryPoint = "#727")]
     private static extern int SHGetImageList(int iImageList, ref Guid riid, out IImageList ppv);
 
+    /// <summary>A favorited/indexed WindowsApps exe path (e.g. a packaged Store app like Claude)
+    /// bakes its exact version into the folder name and stops existing the moment that app
+    /// auto-updates - re-resolve to wherever the SAME package currently lives (see
+    /// WindowsAppHelper) so its icon still extracts correctly instead of falling back to the
+    /// generic blank one. A no-op for every other path, and for a WindowsApps path that still
+    /// exists as-is (the common case, most of the time between updates).</summary>
+    private static string ResolveIfStaleWindowsAppsPath(string path)
+    {
+        if (File.Exists(path) || !SonicSearch.WindowsAppHelper.IsWindowsAppsPath(path)) return path;
+
+        string familyName = SonicSearch.WindowsAppHelper.TryGetPackageFamilyName(path);
+        var (_, installedLocation) = SonicSearch.WindowsAppHelper.TryResolveCurrentApp(familyName);
+        string current = SonicSearch.WindowsAppHelper.TryRebuildCurrentPath(path, installedLocation);
+        return current ?? path;
+    }
+
     public static ImageSource GetJumboIconForPath(string path)
     {
         if (string.IsNullOrEmpty(path)) return null;
+        path = ResolveIfStaleWindowsAppsPath(path);
 
         // See NeedsStaIconHandler - a direct .sln/.slnx (not reached through the .lnk branch
         // below, which handles STA itself via GetLnkIcon) needs the whole lookup run on the STA

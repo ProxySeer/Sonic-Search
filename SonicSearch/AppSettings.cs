@@ -20,6 +20,7 @@ namespace SonicSearch
         public string HotkeyKey { get; set; } = "S";
         public bool QuickStartFirstResult { get; set; } = true;
         public bool HideAfterOpen { get; set; } = false;
+        public bool AlwaysOnTop { get; set; } = false;
         /// <summary>When true, the app runs unelevated and gets its file index from
         /// SonicSearchService over a named pipe instead of reading the MFT/USN journal itself -
         /// see ServiceInstallHelper.cs and PipeClient.cs. Off by default: it requires installing

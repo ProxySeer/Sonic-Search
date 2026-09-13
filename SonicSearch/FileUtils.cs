@@ -20,6 +20,22 @@ public static class FileUtils
             return;
         }
 
+        // A packaged/Store app's WindowsApps path bakes its exact version into the folder name,
+        // so it silently stops existing the next time the app auto-updates - launch by its
+        // AppUserModelId instead (see WindowsAppHelper), which Windows keeps stable regardless
+        // of which version is currently installed. Falls through to the normal path below if the
+        // package can't be resolved (e.g. genuinely uninstalled, not just updated).
+        if (SonicSearch.WindowsAppHelper.IsWindowsAppsPath(filePath))
+        {
+            string familyName = SonicSearch.WindowsAppHelper.TryGetPackageFamilyName(filePath);
+            var (aumid, _) = SonicSearch.WindowsAppHelper.TryResolveCurrentApp(familyName);
+            if (!string.IsNullOrEmpty(aumid))
+            {
+                SonicSearch.WindowsAppHelper.LaunchByAppUserModelId(aumid);
+                return;
+            }
+        }
+
         if (File.Exists(filePath) || Directory.Exists(filePath))
         {
             Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });

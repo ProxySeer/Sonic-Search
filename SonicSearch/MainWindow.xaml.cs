@@ -193,7 +193,10 @@ namespace SonicSearch
 
                 this.WindowState = WindowState.Normal;
                 this.Topmost = true;
-                this.Topmost = false; // Reset topmost so it doesn't stay pinned over everything forever
+                // Reset back to false unless "Always on Top" is on, in which case it should stay
+                // pinned - this pulse is just how a normal (non-pinned) window reliably comes to
+                // the front over whatever else currently has focus.
+                if (!AppSettings.Instance.AlwaysOnTop) this.Topmost = false;
                 this.Activate();
 
                 if (_windowHandle != IntPtr.Zero)
@@ -297,7 +300,8 @@ namespace SonicSearch
 
             SetupAutoReindexTimer();
             SetupTrayIcon();
-            
+            this.Topmost = AppSettings.Instance.AlwaysOnTop;
+
             this.Deactivated += (s, e) => CloseSuggestionsPopup();
             this.IsVisibleChanged += (s, e) => { if (!this.IsVisible) CloseSuggestionsPopup(); };
 
@@ -508,6 +512,7 @@ namespace SonicSearch
                 }
                 SetupAutoReindexTimer();
                 SetupFileSystemWatcher();
+                this.Topmost = AppSettings.Instance.AlwaysOnTop;
 
                 string newIncluded = AppSettings.Instance.IncludedIndexFolders ?? "";
                 string newExcluded = AppSettings.Instance.ExcludedIndexFolders ?? "";
