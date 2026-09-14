@@ -13,21 +13,26 @@ A super-fast file search tool for NTFS drives on Windows. Instead of walking fol
 ## Features
 
 - Instant search with Contains / Starts With / Exact / Regex / wildcard (`*`, `?`) matching modes
+- Multi-drive indexing — pick which drives to index and search across (Settings → Indexing)
 - Filter qualifiers you can combine freely:
   - `ext:` / `type:` — by file extension
   - `folder:` / `file:` — folders or files only
   - `size:` — e.g. `size:>10mb`, `size:<500kb`
   - `date:` / `modified:` — e.g. `date:today`, `date:>7d`
   - `location:` / `path:` / `in:` — e.g. `location:desktop`, `path:downloads`, or any custom path
+  - `drive:` — restrict to one indexed drive, e.g. `drive:d`
   - `content:` / `text:` — search inside file contents
 - Autocomplete with search history — including recalling filter values you've used before (e.g. typing `loc` suggests `location:desktop` if you searched that before)
 - Browser bookmarks (Chrome/Edge) show up alongside file results when their title matches
 - Built-in Windows tools (Device Manager, Control Panel, Services, ...) show up the same way
+- Packaged/Store apps (e.g. Claude) stay launchable from Favorites/search even after they auto-update, by resolving their stable AppUserModelId instead of a version-baked path
 - Favorites, organized into groups, shown as an icon grid with a live search box of their own
 - Drag-and-drop from Explorer (requires the background indexing service - see above)
 - Global hotkey to summon the search window from anywhere, from a tray icon it hides to instead of quitting
 - Optional launch at Windows startup, hidden straight to the tray
+- Optional Always on Top
 - File preview, icons, and execution-frequency-based result ranking
+- Settings organized into categories (Search, Indexing, Behavior, Content Search, Filters Help, About) instead of one long list
 - Fully open source
 
 See the in-app **Settings → Filters Help** tab for the full filter reference, and **Settings → About** for version info.
