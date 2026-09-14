@@ -139,8 +139,48 @@ namespace SonicSearch
             RegisterHotKey(_windowHandle, HOTKEY_ID, mod, vk);
         }
 
+        /// <summary>Re-centers the window on the primary monitor's work area if its current
+        /// position no longer overlaps ANY visible screen at all - e.g. a monitor it was on got
+        /// disconnected, or the resolution shrank enough that its remembered coordinates now fall
+        /// past the new (smaller) desktop. Does nothing if the window is still at least partially
+        /// visible somewhere, so a window that's merely straddling two monitors, or just sitting
+        /// in an unusual-but-valid spot, is left alone.</summary>
+        private void EnsureWindowOnScreen()
+        {
+            try
+            {
+                var virtualScreen = new Rect(
+                    System.Windows.Forms.SystemInformation.VirtualScreen.Left,
+                    System.Windows.Forms.SystemInformation.VirtualScreen.Top,
+                    System.Windows.Forms.SystemInformation.VirtualScreen.Width,
+                    System.Windows.Forms.SystemInformation.VirtualScreen.Height);
+
+                double width = double.IsNaN(this.Width) || this.Width <= 0 ? this.ActualWidth : this.Width;
+                double height = double.IsNaN(this.Height) || this.Height <= 0 ? this.ActualHeight : this.Height;
+                if (width <= 0 || height <= 0) return;
+
+                var windowRect = new Rect(this.Left, this.Top, width, height);
+                if (virtualScreen.IntersectsWith(windowRect)) return;
+
+                var workArea = SystemParameters.WorkArea;
+                this.Left = workArea.Left + Math.Max(0, (workArea.Width - width) / 2);
+                this.Top = workArea.Top + Math.Max(0, (workArea.Height - height) / 2);
+            }
+            catch { /* best-effort - never worth blocking showing the window over this */ }
+        }
+
+        private void DisplaySettingsChanged(object sender, EventArgs e)
+        {
+            // Runs on whatever thread raises the OS event, not necessarily the UI thread.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (this.Visibility == Visibility.Visible) EnsureWindowOnScreen();
+            }));
+        }
+
         protected override void OnClosed(EventArgs e)
         {
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplaySettingsChanged;
             _source?.RemoveHook(HwndHook);
             UnregisterHotKey(_windowHandle, HOTKEY_ID);
             if (_notifyIcon != null)
@@ -188,6 +228,14 @@ namespace SonicSearch
                 // Bring to top and focus
                 if (this.Visibility != Visibility.Visible)
                 {
+                    // WindowStartupLocation="CenterScreen" only ever positions the window ONCE,
+                    // when it's first created - if the screen resolution/monitor layout changed
+                    // while this (long-lived, hides-to-tray-instead-of-closing) window sat hidden,
+                    // its remembered Left/Top could now be off every visible screen entirely.
+                    // Catch that right before showing it again, rather than only reacting live to
+                    // DisplaySettingsChanged (see the constructor) which wouldn't cover a change
+                    // that happened before this session ever started tracking it.
+                    EnsureWindowOnScreen();
                     this.Show();
                 }
 
@@ -301,6 +349,7 @@ namespace SonicSearch
             SetupAutoReindexTimer();
             SetupTrayIcon();
             this.Topmost = AppSettings.Instance.AlwaysOnTop;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplaySettingsChanged;
 
             this.Deactivated += (s, e) => CloseSuggestionsPopup();
             this.IsVisibleChanged += (s, e) => { if (!this.IsVisible) CloseSuggestionsPopup(); };

@@ -31,8 +31,15 @@
 
 	<application xmlns="urn:schemas-microsoft-com:asm.v3">
 		<windowsSettings>
-			<!-- Enable per-monitor DPI awareness -->
-			<dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">permonitor</dpiAwareness>
+			<!-- Per-Monitor V2 (not just V1/"permonitor") - only V2 gets WPF's automatic
+			     window-size/layout rescaling when the window moves to a monitor with a
+			     different DPI, or the display resolution changes while it's up. With V1 alone,
+			     WPF doesn't rescale automatically at all, which is what made the window end up
+			     visibly stretched/mis-sized after a resolution change instead of adjusting to
+			     match it. dpiAware (the older 2005-schema element) is kept as a fallback for
+			     Windows versions before the 2016 schema/PerMonitorV2 existed (pre-1703). -->
+			<dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/PM</dpiAware>
+			<dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
 
 			<!-- Enable long path support -->
 			<longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
